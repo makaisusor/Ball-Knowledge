@@ -33,6 +33,7 @@ def main():
                 "group": group,
                 "sportIds": 1,
                 "season": YEAR,
+                "playerPool": "ALL",
                 "limit": limit,
                 "offset": offset,
             })
@@ -64,10 +65,12 @@ def main():
 
             offset += limit
 
-    if not players:
+    # A full MLB season includes far more than the qualified leaders.
+    # Refuse to overwrite a good file if the API returns only a partial list.
+    if len(players) < 700:
         raise RuntimeError(
-            "No 2026 MLB players returned. "
-            "Existing data will not be overwritten."
+            f"Only {len(players)} MLB players returned for {YEAR}; "
+            "expected at least 700. Refusing to replace the player database."
         )
 
     result = {
