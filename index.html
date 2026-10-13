@@ -21,6 +21,31 @@ const RAW=[["aardsda01","David","Aardsma"],["aaronha01","Hank","Aaron"],["aaront
 const players=RAW.map(([id,first,last])=>({id,first,last,name:first+' '+last,key:norm(first+' '+last)}));
 const byId=new Map(players.map(p=>[p.id,p]));
 const byName=new Map();for(const p of players){let a=byName.get(p.key)||[];a.push(p);byName.set(p.key,a)}
+// Add current-season MLB players from the daily GitHub Actions update.
+async function loadCurrentMLBPlayers(){
+ try{
+  const response=await fetch('./mlb-players-latest.json',{cache:'no-store'});
+  if(!response.ok)throw new Error('Player update unavailable');
+  const data=await response.json();
+  if(!Array.isArray(data.players)||data.players.length<700)throw new Error('Incomplete MLB player update');
+  let added=0;
+  for(const item of data.players){
+   if(!item||!Number.isInteger(item.mlbId)||typeof item.name!=='string')continue;
+   const name=item.name.trim().replace(/\\s+/g,' ');
+   const parts=name.split(/\\s+/);
+   if(parts.length<2)continue;
+   const key=norm(name);
+   if(byName.has(key))continue;
+   const first=parts[0],last=parts.slice(1).join(' ');
+   const id='mlb-'+item.mlbId;
+   if(byId.has(id))continue;
+   const p={id,first,last,name,key,mlbId:item.mlbId};
+   players.push(p);byId.set(id,p);byName.set(key,[p]);added++;
+  }
+  console.info('Ball Knowledge: added '+added+' new MLB names from '+data.season);
+ }catch(error){console.warn('Ball Knowledge: using historical player list only',error)}
+}
+loadCurrentMLBPlayers();
 function norm(s){return String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/gi,'').toLowerCase()}
 function initial(s){return (s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').match(/[a-z]/i)||[''])[0].toUpperCase()}
 const app=document.getElementById('app');let mode='solo',duration=20,count=2,profiles=['Player 1','Player 2'],game=null,ticker=null,selected=null,searchMatches=[];
@@ -43,7 +68,7 @@ function advance(){let g=game;if(g.mode==='solo'){renderGame();beginTurn();retur
 function eliminate(reason){if(!game||game.done)return;stopTimer();let g=game;if(g.mode==='solo'){finish(reason);return}current().alive=false;if(g.people.filter(p=>p.alive).length<=1){finish(reason);return}advance()}
 function beginTurn(){if(!game||game.done)return;let g=game;g.endsAt=Date.now()+g.duration*1000;updateClock();ticker=setInterval(()=>{if(!game||game!==g||g.done){stopTimer();return}updateClock();if(Date.now()>=g.endsAt)eliminate('Time expired')},150);if(g.mode==='cpu'&&current().name==='Computer'){let currentGame=g,turn=g.turn;let choices=players.filter(p=>!g.used.has(p.id)&&(!g.last||initial(p.first)===initial(g.last.last)));let delay=1500+Math.random()*2600;setTimeout(()=>{if(game!==currentGame||g.done||g.turn!==turn||current().name!=='Computer')return;if(!choices.length||Math.random()<.08){eliminate('Computer could not answer');return}accept(choices[Math.floor(Math.random()*choices.length)])},delay)}}
 function updateClock(){if(!game)return;let el=document.getElementById('clock');if(el){let left=Math.max(0,Math.ceil((game.endsAt-Date.now())/1000));el.textContent=left;el.classList.toggle('urgent',left<=5)}}
-function showPlayerInfo(id){let p=byId.get(id);if(!p)return;let modal=document.getElementById('bk-player-modal'),content=document.getElementById('bk-modal-content');let url='https://www.baseball-reference.com/players/'+encodeURIComponent(p.id[0])+'/'+encodeURIComponent(p.id)+'.shtml';content.innerHTML='<p>MLB player from the SABR Lahman historical baseball database (through 2025).</p><p><strong>Player:</strong> '+safe(p.name)+'</p><p><strong>Baseball-Reference ID:</strong> '+safe(p.id)+'</p><p><a href="'+url+'" target="_blank" rel="noopener noreferrer">'+safe(p.name)+' ↗ View career profile and statistics</a></p>';modal.hidden=false;document.getElementById('bk-modal-close').focus()}
+function showPlayerInfo(id){let p=byId.get(id);if(!p)return;let modal=document.getElementById('bk-player-modal'),content=document.getElementById('bk-modal-content');let url=p.mlbId?'https://www.mlb.com/player/'+encodeURIComponent(p.mlbId):'https://www.baseball-reference.com/players/'+encodeURIComponent(p.id[0])+'/'+encodeURIComponent(p.id)+'.shtml';content.innerHTML='<p>'+(p.mlbId?'MLB player listed in the 2026 season data.':'MLB player from the historical Lahman database.')+'</p><p><strong>Player:</strong> '+safe(p.name)+'</p><p><a href="'+url+'" target="_blank" rel="noopener noreferrer">'+safe(p.name)+' ↗ View '+(p.mlbId?'MLB':'Baseball-Reference')+' career profile and statistics</a></p>';modal.hidden=false;document.getElementById('bk-modal-close').focus()}
 document.getElementById('bk-modal-close').onclick=()=>document.getElementById('bk-player-modal').hidden=true;document.getElementById('bk-player-modal').addEventListener('click',e=>{if(e.target.id==='bk-player-modal')e.currentTarget.hidden=true});document.addEventListener('keydown',e=>{if(e.key==='Escape')document.getElementById('bk-player-modal').hidden=true});
 function finish(reason){if(!game||game.done)return;stopTimer();game.done=true;let g=game,sorted=[...g.people].sort((a,b)=>b.answers-a.answers),winner=g.mode==='solo'?g.people[0]:g.people.find(p=>p.alive);let rows=getScores();for(let p of g.people){if(p.name==='Computer')continue;rows.push({name:p.name,mode:g.mode,chain:p.answers,date:new Date().toISOString()})}saveScores(rows);app.innerHTML=`<section class="panel center"><span class="tag">GAME OVER</span><h2 style="margin-top:18px">${safe(reason)}</h2><p>${winner?'Top player: '+safe(winner.name):'Thanks for playing!'}</p><div class="stats"><div class="stat"><b>${g.history.length}</b><span>Total answers</span></div><div class="stat"><b>${g.people.length}</b><span>Participants</span></div></div><div class="actions"><button class="primary" id="again">Play again</button><button class="secondary" id="home">Main menu</button></div></section><section class="panel"><h2>Full player history</h2><p>Every MLB player named in this game, in order.</p><ol class="history">${g.history.map(h=>`<li><span><button type="button" class="bk-history-player" data-player-id="${safe(h.player.id)}">${safe(h.player.name)} ⓘ</button></span><small>${safe(h.by)}</small></li>`).join('')||'<li>No players named</li>'}</ol><button class="secondary" id="copy">Copy answer list</button></section><section class="panel"><h2>Match results</h2><ol class="history">${sorted.map(p=>`<li><span>${safe(p.name)}</span><b>${p.answers} valid answers</b></li>`).join('')}</ol></section>`;app.querySelectorAll('.bk-history-player').forEach(b=>b.onclick=()=>showPlayerInfo(b.dataset.playerId));document.getElementById('again').onclick=()=>{game=null;start()};document.getElementById('home').onclick=menu;document.getElementById('copy').onclick=()=>{let s=g.history.map((h,i)=>`${i+1}. ${h.player.name} — ${h.by}`).join('\n');navigator.clipboard?.writeText(s).then(()=>alert('Copied!')).catch(()=>prompt('Copy your answers:',s))||prompt('Copy your answers:',s)}}
 menu();
