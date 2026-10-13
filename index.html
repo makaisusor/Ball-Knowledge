@@ -31,7 +31,7 @@ body:not(.bk-before-entry) #bk-gate{display:none!important}
 (function(){
 const view=document.getElementById('bk-profile-view'),drop=document.getElementById('bk-profile-dropdown'),trigger=document.getElementById('bk-profile-trigger');
 const accountSlot=document.getElementById('bk-profile-account-slot'),authSlot=document.getElementById('bk-profile-auth-slot');
-accountSlot.appendChild(document.getElementById('bk-account'));authSlot.appendChild(document.getElementById('bk-auth'));
+document.addEventListener('DOMContentLoaded',()=>{const account=document.getElementById('bk-account'),auth=document.getElementById('bk-auth');if(account)accountSlot.appendChild(account);if(auth)authSlot.appendChild(auth)});
 const photo=document.getElementById('bk-profile-photo'),file=document.getElementById('bk-photo-file'),bio=document.getElementById('bk-bio'),msg=document.getElementById('bk-profile-message');
 const sb=()=>window.supabase?.createClient('https://wbtzpvirschyrklrrhxl.supabase.co','sb_publishable_AFdY1dlf0qd5HhJ-TqCOkw_33ae2VfB');
 const placeholder='data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="90" height="90"><rect width="90" height="90" fill="#273b51"/><text x="45" y="57" text-anchor="middle" font-size="38">👤</text></svg>');
