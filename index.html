@@ -184,7 +184,7 @@ function message(s,bad){const el=root.querySelector('.bk-account-msg');if(el){el
 async function sync(){const n=++serial;try{user=await window.bkAuthenticatedUser();if(n!==serial)return;if(!isRegistered(user)){username='';root.innerHTML='';window.bkAccountUsername='';return}const res=await sb.from('profiles').select('username').eq('id',user.id).maybeSingle();if(n!==serial)return;if(res.error)throw res.error;username=res.data?.username||'';window.bkAccountUsername=username;render();if(typeof renderNames==='function'&&document.getElementById('names'))renderNames();}catch(e){if(n!==serial)return;root.innerHTML='<section class="panel"><h2>Account leaderboard</h2><p class="bk-account-msg bad">'+esc(e.message||'Unable to load account')+'</p></section>'}}
 function render(){if(!isRegistered(user)){root.innerHTML='';return}root.innerHTML='<section class="panel"><h2>⚾ Your account</h2>'+(username?'<p>Playing as <b>'+esc(username)+'</b></p>':'<p>Choose a unique username to appear on leaderboards and in games.</p>')+'<label for="bk-account-username">'+(username?'Change username':'Choose username')+'</label><input id="bk-account-username" maxlength="24" value="'+esc(username)+'" placeholder="BaseballFan24" autocomplete="off"><button class="secondary" id="bk-account-save" style="margin-top:10px">Save username</button><p class="bk-account-msg" role="status"></p></section><section class="panel"><h2>🏆 Global leaderboards</h2><div class="bk-account-tabs"><button class="secondary '+(tab==='best_single_game'?'active':'')+'" id="bk-best">Best single game</button><button class="secondary '+(tab==='all_time_players_named'?'active':'')+'" id="bk-all">All-time named</button></div><div id="bk-account-ranks"><p>Loading rankings…</p></div><p class="small">Registered accounts only · Ranked and Training · Verified results coming soon.</p></section>';root.querySelector('#bk-account-save').onclick=save;root.querySelector('#bk-best').onclick=()=>{tab='best_single_game';render()};root.querySelector('#bk-all').onclick=()=>{tab='all_time_players_named';render()};loadRanks()}
 async function save(){const input=root.querySelector('#bk-account-username'),name=input.value.trim();if(!/^[A-Za-z0-9_]{3,24}$/.test(name)){message('Use 3–24 letters, numbers, or underscores.',true);return}const button=root.querySelector('#bk-account-save');button.disabled=true;message('Saving…');try{const {error}=await sb.from('profiles').upsert({id:user.id,username:name},{onConflict:'id'});if(error)throw error;username=name;window.bkAccountUsername=name;render();if(typeof renderNames==='function'&&document.getElementById('names'))renderNames();message('Username saved!')}catch(e){message(e.code==='23505'?'That username is already taken.':e.message,true);button.disabled=false}}
-async function loadRanks(){const target=root.querySelector('#bk-account-ranks');if(!target)return;const selected=tab;const {data,error}=await sb.rpc('get_global_leaderboard');if(!target.isConnected||tab!==selected)return;if(error){target.innerHTML='<p>'+esc(error.message)+'</p>';return}const sorted=(data||[]).slice().sort((a,b)=>Number(b[selected]||0)-Number(a[selected]||0)||String(a.username).localeCompare(String(b.username))).slice(0,25);target.innerHTML=sorted.length?sorted.map((r,i)=>'<div class="bk-rank-row"><span>#'+(i+1)+' '+esc(r.username)+'</span><b>'+Number(r[selected]||0).toLocaleString()+'</b></div>').join(''):'<p>No ranked games yet. Be the first when verified scores launch!</p>'}
+async function loadRanks(){const target=root.querySelector('#bk-account-ranks');if(!target)return;const selected=tab;const {data,error}=await sb.rpc('get_global_leaderboard');if(!target.isConnected||tab!==selected)return;if(error){target.innerHTML='<p class="bk-account-msg bad">Leaderboard unavailable: '+esc(error.message||'Network request failed')+'</p><button type="button" id="bk-ranks-retry">Retry leaderboard</button>';target.querySelector('#bk-ranks-retry')?.addEventListener('click',loadRanks);return}const sorted=(data||[]).slice().sort((a,b)=>Number(b[selected]||0)-Number(a[selected]||0)||String(a.username).localeCompare(String(b.username))).slice(0,25);target.innerHTML=sorted.length?sorted.map((r,i)=>'<div class="bk-rank-row"><span>#'+(i+1)+' '+esc(r.username)+'</span><b>'+Number(r[selected]||0).toLocaleString()+'</b></div>').join(''):'<p>No ranked games yet. Be the first when verified scores launch!</p>'}
 if(!sb){root.innerHTML='<p>Account features unavailable. Refresh to retry.</p>';return}
 window.bkSyncAccount=sync;sb.auth.onAuthStateChange(()=>{setTimeout(sync,0)});sync();
 })();
@@ -270,22 +270,13 @@ async function bkRefreshCareer(){
  const {client,user}=await bkCareerAuth();if(serial!==bkCareerSerial)return;
  bkCareerUser=user?.id||null;bkCareerTotal=0;bkCareerStatus='Loading your unique player collection…';bkDrawCareer();
  if(!user||!client||user.is_anonymous)return;
- const {count,error}=await client.from('career_player_names').select('player_id',{count:'exact',head:true}).eq('user_id',user.id);
+ const {data,error}=await client.from('bk_player_name_events').select('player_id').eq('user_id',user.id).limit(100000);
  if(serial!==bkCareerSerial)return;
- bkCareerTotal=count||0;bkCareerStatus=error?'Career badges need the Supabase career_player_names table to be installed.':'Synced to your Ball Knowledge account. Each MLB player counts only once.';bkDrawCareer();
+ bkCareerTotal=error?0:new Set((data||[]).map(row=>row.player_id)).size;bkCareerStatus=error?'Could not load career progress: '+error.message:'Synced from completed games. Each MLB player counts only once.';bkDrawCareer();
 }
 async function bkCreditAnswer(playerId){
- const {client,user}=await bkCareerAuth();if(!client||!user)return;
- const id=String(playerId);if(!id)return;
- const oldTotal=bkCareerUser===user.id?bkCareerTotal:null;
- const {error}=await client.from('career_player_names').upsert({user_id:user.id,player_id:id},{onConflict:'user_id,player_id',ignoreDuplicates:true});
- if(error){bkCareerStatus='Could not save player: '+error.message;bkDrawCareer();return}
- const {count,error:countError}=await client.from('career_player_names').select('player_id',{count:'exact',head:true}).eq('user_id',user.id);
- if(countError)return;
- bkCareerUser=user.id;bkCareerTotal=count||0;bkCareerStatus='Synced to your Ball Knowledge account. Each MLB player counts only once.';bkDrawCareer();
- if(oldTotal!==null&&bkRankFor(oldTotal)!==bkRankFor(bkCareerTotal)){
-  const rank=bkRankFor(bkCareerTotal),banner=document.createElement('div');banner.className='bk-rank-unlock';banner.textContent='RANK UP! '+rank.icon+' '+rank.name;document.body.appendChild(banner);setTimeout(()=>banner.remove(),2400)
- }
+ // Unique player progress is credited from verified completed games via record_career_game.
+ // Do not write a separate duplicate event for each answer.
 }
 window.bkRefreshCareer=bkRefreshCareer;
 document.getElementById('bk-profile-trigger')?.addEventListener('click',()=>setTimeout(bkRefreshCareer,0));
@@ -296,7 +287,7 @@ async function bkRecordGlobalGame(g){
   const client=bkCareerClient(),{data}=await client.auth.getUser(),user=data?.user;
   if(!user||user.is_anonymous||!user.email)return;
   const {error}=await client.rpc('record_career_game',{p_mode:g.mode,p_score:g.people[0]?.answers||0,p_player_ids:g.history.filter(h=>h.by!=='Computer').map(h=>String(h.player.id))});
-  if(error)console.warn('Global score sync failed:',error.message);
+  if(error)console.warn('Global score sync failed:',error.message);else await bkRefreshCareer();
  }catch(e){console.warn('Global score sync failed:',e)}
 }
 function stopTimer(){if(ticker)clearInterval(ticker);ticker=null}
