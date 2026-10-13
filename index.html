@@ -141,7 +141,7 @@ let current=null;
 function close(){document.body.classList.remove('bk-profile-open');drop.hidden=true;trigger.setAttribute('aria-expanded','false')}
 async function open(section){drop.hidden=true;document.body.classList.remove('bk-before-entry');document.body.classList.add('bk-profile-open');if(document.getElementById('bk-account').parentElement!==accountSlot)accountSlot.appendChild(document.getElementById('bk-account'));if(document.getElementById('bk-auth').parentElement!==authSlot)authSlot.appendChild(document.getElementById('bk-auth'));try{current=await window.bkAuthenticatedUser()}catch{current=null}const key='bk_photo_'+(current?.id||'guest');photo.src=current?(current.user_metadata?.avatar_data||placeholder):(localStorage.getItem(key)||placeholder);document.getElementById('bk-password-panel').hidden=!current;bio.value=current?.user_metadata?.bio||localStorage.getItem('bk_bio_guest')||'';document.getElementById('bk-profile-label').textContent=current?.user_metadata?.username||current?.email?.split('@')[0]||'Profile';if(typeof window.bkRefreshCareer==='function')window.bkRefreshCareer();if(typeof window.bkSyncAccount==='function')window.bkSyncAccount();if(section==='settings')document.getElementById('bk-auth').scrollIntoView({block:'nearest'});if(section==='rankings')document.getElementById('bk-account').scrollIntoView({block:'nearest'});}
 trigger.onclick=()=>{drop.hidden=!drop.hidden;trigger.setAttribute('aria-expanded',String(!drop.hidden))};
-document.getElementById('bk-open-profile').onclick=()=>open('profile');document.getElementById('bk-open-rankings').onclick=()=>open('rankings');document.getElementById('bk-open-settings').onclick=()=>open('settings');document.getElementById('bk-profile-back').onclick=close;
+document.getElementById('bk-open-profile').onclick=()=>open('profile');document.getElementById('bk-open-rankings').hidden=true;document.getElementById('bk-open-settings').onclick=()=>open('settings');document.getElementById('bk-profile-back').onclick=close;
 document.getElementById('bk-menu-signout').onclick=async()=>{drop.hidden=true;try{const {error}=await sb().auth.signOut();if(error)throw error;window.bkReturnToEntry?.()}catch(e){alert(e.message)}};
 document.addEventListener('click',e=>{if(!drop.contains(e.target)&&!trigger.contains(e.target))drop.hidden=true});
 file.onchange=()=>{const f=file.files?.[0];if(!f)return;if(f.size>1024*1024){msg.textContent='Choose a photo under 1 MB.';file.value='';return}const reader=new FileReader();reader.onload=()=>{photo.src=reader.result};reader.readAsDataURL(f)};
@@ -173,33 +173,7 @@ window.bkOpenProfile=open;
 })();
 </script><div id="app"></div><style>
 #bk-account .bk-account-tabs{display:flex;gap:8px;margin:12px 0}#bk-account .bk-account-tabs button{flex:1}#bk-account .bk-account-tabs button.active{border-color:var(--accent);color:var(--accent)}#bk-account .bk-rank-row{display:flex;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid var(--line)}#bk-account .bk-rank-row b{font-variant-numeric:tabular-nums}#bk-account .bk-account-msg{font-size:13px;color:var(--muted)}#bk-account .bk-account-msg.bad{color:var(--danger)}
-</style><div id="bk-account"></div><script>
-(function(){
-const root=document.getElementById('bk-account');
-const sb=window.bkSharedClient();
-let user=null,username='',tab='best_single_game',serial=0;
-const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
-function isRegistered(u){return !!u&&!u.is_anonymous&&!!u.email}
-function message(s,bad){const el=root.querySelector('.bk-account-msg');if(el){el.textContent=s;el.classList.toggle('bad',!!bad)}}
-async function sync(){const n=++serial;try{user=await window.bkAuthenticatedUser();if(n!==serial)return;if(!isRegistered(user)){username='';root.innerHTML='';window.bkAccountUsername='';return}const res=await sb.from('profiles').select('username').eq('id',user.id).maybeSingle();if(n!==serial)return;if(res.error)throw res.error;username=res.data?.username||'';window.bkAccountUsername=username;render();if(typeof renderNames==='function'&&document.getElementById('names'))renderNames();}catch(e){if(n!==serial)return;root.innerHTML='<section class="panel"><h2>Account leaderboard</h2><p class="bk-account-msg bad">'+esc(e.message||'Unable to load account')+'</p></section>'}}
-function render(){if(!isRegistered(user)){root.innerHTML='';return}root.innerHTML='<section class="panel"><h2>⚾ Your account</h2>'+(username?'<p>Playing as <b>'+esc(username)+'</b></p>':'<p>Choose a unique username to appear on leaderboards and in games.</p>')+'<label for="bk-account-username">'+(username?'Change username':'Choose username')+'</label><input id="bk-account-username" maxlength="24" value="'+esc(username)+'" placeholder="BaseballFan24" autocomplete="off"><button class="secondary" id="bk-account-save" style="margin-top:10px">Save username</button><p class="bk-account-msg" role="status"></p></section><section class="panel"><h2>🏆 Global leaderboards</h2><div class="bk-account-tabs"><button class="secondary '+(tab==='best_single_game'?'active':'')+'" id="bk-best">Best single game</button><button class="secondary '+(tab==='all_time_players_named'?'active':'')+'" id="bk-all">All-time named</button></div><div id="bk-account-ranks"><p>Loading rankings…</p></div><p class="small">Registered accounts only · Ranked and Training · Verified results coming soon.</p></section>';root.querySelector('#bk-account-save').onclick=save;root.querySelector('#bk-best').onclick=()=>{tab='best_single_game';render()};root.querySelector('#bk-all').onclick=()=>{tab='all_time_players_named';render()};loadRanks()}
-async function save(){const input=root.querySelector('#bk-account-username'),name=input.value.trim();if(!/^[A-Za-z0-9_]{3,24}$/.test(name)){message('Use 3–24 letters, numbers, or underscores.',true);return}const button=root.querySelector('#bk-account-save');button.disabled=true;message('Saving…');try{const {error}=await sb.from('profiles').upsert({id:user.id,username:name},{onConflict:'id'});if(error)throw error;username=name;window.bkAccountUsername=name;render();if(typeof renderNames==='function'&&document.getElementById('names'))renderNames();message('Username saved!')}catch(e){message(e.code==='23505'?'That username is already taken.':e.message,true);button.disabled=false}}
-async function loadRanks(){const target=root.querySelector('#bk-account-ranks');if(!target)return;const selected=tab;const {data,error}=await sb.rpc('get_global_leaderboard');if(!target.isConnected||tab!==selected)return;if(error){target.innerHTML='<p class="bk-account-msg bad">Leaderboard unavailable: '+esc(error.message||'Network request failed')+'</p><button type="button" id="bk-ranks-retry">Retry leaderboard</button>';target.querySelector('#bk-ranks-retry')?.addEventListener('click',loadRanks);return}const sorted=(data||[]).slice().sort((a,b)=>Number(b[selected]||0)-Number(a[selected]||0)||String(a.username).localeCompare(String(b.username))).slice(0,25);target.innerHTML=sorted.length?sorted.map((r,i)=>'<div class="bk-rank-row"><span>#'+(i+1)+' '+esc(r.username)+'</span><b>'+Number(r[selected]||0).toLocaleString()+'</b></div>').join(''):'<p>No ranked games yet. Be the first when verified scores launch!</p>'}
-if(!sb){root.innerHTML='<p>Account features unavailable. Refresh to retry.</p>';return}
-window.bkSyncAccount=sync;
-let accountSyncTimer=null;
-let lastAccountAuthId=null;
-sb.auth.onAuthStateChange((event,session)=>{
-  const nextId=session?.user?.id||null;
-  if(event==='TOKEN_REFRESHED'&&nextId===lastAccountAuthId)return;
-  if(event==='INITIAL_SESSION'&&nextId===lastAccountAuthId)return;
-  lastAccountAuthId=nextId;
-  clearTimeout(accountSyncTimer);
-  accountSyncTimer=setTimeout(sync,250);
-});
-sync();
-})();
-</script>
+#bk-open-rankings,#bk-career-profile,#bk-account{display:none!important}</style><div id="bk-account" hidden></div><script>window.bkSyncAccount=function(){};window.bkAccountUsername="";</script>
 <style>
 #bk-private{margin-top:18px;margin-bottom:0}.modes:has(#bk-compete-mode){grid-template-columns:repeat(4,minmax(0,1fr))}@media(max-width:480px){.modes:has(#bk-compete-mode){grid-template-columns:repeat(2,minmax(0,1fr))}}#bk-compete-slot #bk-private .panel{margin-bottom:0}body> #bk-private{display:none}#bk-private .bk-private-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}#bk-private button{margin-top:10px}#bk-private .bk-code{font-size:34px;letter-spacing:5px;font-weight:850;color:var(--accent)}#bk-private .bk-feedback{color:var(--muted);font-size:14px;min-height:18px}#bk-private .bk-feedback.bad{color:var(--danger)}#bk-private .bk-lobby-row{padding:10px;border-bottom:1px solid var(--line)}@media(max-width:520px){#bk-private .bk-private-grid{grid-template-columns:1fr}}
 </style><div id="bk-private"></div>
@@ -276,15 +250,7 @@ function bkRankMarkup(total){
  return '<section class="bk-rank-card"><div class="bk-rank-eyebrow">Unique MLB players · Account only</div><div class="bk-rank-title">'+rank.icon+' '+rank.name+'</div><div class="bk-rank-meta">'+total.toLocaleString()+' unique players named'+(next?' · '+(next.min-total).toLocaleString()+' to '+next.name:' · Highest rank unlocked')+'</div><div class="bk-rank-track"><div class="bk-rank-fill" style="width:'+pct+'%"></div></div><div class="bk-rank-grid">'+bkRankTiers.map(t=>'<div class="bk-rank-tier '+(total>=t.min?'earned':'')+'"><b>'+t.icon+' '+t.name+'</b>'+t.min.toLocaleString()+'+</div>').join('')+'</div><p class="bk-rank-meta" style="margin-top:12px">'+safe(bkCareerStatus)+'</p></section>';
 }
 function bkDrawCareer(){const root=document.getElementById('bk-career-profile');if(root)root.innerHTML=bkCareerUser?bkRankMarkup(bkCareerTotal):'<section class="bk-rank-card"><div class="bk-rank-eyebrow">Career badges · Account only</div><div class="bk-rank-title">Unlock your rank</div><p class="bk-rank-meta">Sign in or create an account to earn badges for unique MLB players. Guest answers do not count.</p></section>'}
-async function bkRefreshCareer(){
- const serial=++bkCareerSerial;
- const {client,user}=await bkCareerAuth();if(serial!==bkCareerSerial)return;
- bkCareerUser=user?.id||null;bkCareerTotal=0;bkCareerStatus='Loading your unique player collection…';bkDrawCareer();
- if(!user||!client||user.is_anonymous)return;
- const {data,error}=await client.from('bk_player_name_events').select('player_id').eq('user_id',user.id).limit(100000);
- if(serial!==bkCareerSerial)return;
- bkCareerTotal=error?0:new Set((data||[]).map(row=>row.player_id)).size;bkCareerStatus=error?'Could not load career progress: '+error.message:'Synced from completed games. Each MLB player counts only once.';bkDrawCareer();
-}
+async function bkRefreshCareer(){ /* Career ranking temporarily disabled. */ }
 async function bkCreditAnswer(playerId){
  // Unique player progress is credited from verified completed games via record_career_game.
  // Do not write a separate duplicate event for each answer.
@@ -293,14 +259,7 @@ window.bkRefreshCareer=bkRefreshCareer;
 document.getElementById('bk-profile-trigger')?.addEventListener('click',()=>setTimeout(bkRefreshCareer,0));
 function getScores(){try{return JSON.parse(localStorage.getItem('bk_scores_v1')||'[]')}catch{return []}}
 function saveScores(rows){try{localStorage.setItem('bk_scores_v1',JSON.stringify(rows.slice(-200)))}catch{}}
-async function bkRecordGlobalGame(g){
- try{
-  const client=bkCareerClient(),{data}=await client.auth.getUser(),user=data?.user;
-  if(!user||user.is_anonymous||!user.email)return;
-  const {error}=await client.rpc('record_career_game',{p_mode:g.mode,p_score:g.people[0]?.answers||0,p_player_ids:g.history.filter(h=>h.by!=='Computer').map(h=>String(h.player.id))});
-  if(error)console.warn('Global score sync failed:',error.message);else await bkRefreshCareer();
- }catch(e){console.warn('Global score sync failed:',e)}
-}
+async function bkRecordGlobalGame(g){ /* Global score syncing paused; local scores remain available. */ }
 function stopTimer(){if(ticker)clearInterval(ticker);ticker=null}
 function leagueMenu(){if(game&&!game.done)return;stopTimer();game=null;const privateRoot=document.getElementById('bk-private');if(privateRoot&&privateRoot.parentElement!==document.body)document.body.appendChild(privateRoot);app.innerHTML=`<section class="panel"><h2>Choose your league</h2><p>Test your sports knowledge. Select a league to start playing.</p><div class="bk-leagues"><button class="bk-league available" id="bk-mlb"><img class="bk-league-logo mlb" src="https://www.mlbstatic.com/team-logos/league-on-dark/1.svg" alt="MLB logo" loading="lazy" onerror="this.onerror=null;this.src='https://www.mlbstatic.com/team-logos/league/1.svg'">MLB<small>Play now →</small></button><button class="bk-league soon" disabled><img class="bk-league-logo nba" src="https://upload.wikimedia.org/wikipedia/en/0/03/National_Basketball_Association_logo.svg" alt="NBA logo" loading="lazy" onerror="this.style.display='none'">NBA<small>Coming soon</small></button><button class="bk-league soon" disabled><img class="bk-league-logo nfl" src="https://upload.wikimedia.org/wikipedia/en/a/a2/National_Football_League_logo.svg" alt="NFL logo" loading="lazy" onerror="this.style.display='none'">NFL<small>Coming soon</small></button></div></section>`;document.getElementById('bk-mlb').onclick=menu}
 function menu(){stopTimer();game=null;const privateRoot=document.getElementById('bk-private');if(privateRoot&&privateRoot.parentElement!==document.body)document.body.appendChild(privateRoot);app.innerHTML=`<section class="panel"><button class="secondary" id="bk-back-leagues" style="margin-bottom:18px">← All leagues</button><h2>⚾ MLB — Know ball? Prove it.</h2><p>Build the longest MLB name chain. The next player's first name must start with the first letter of the previous player's last name. No repeats.</p><div class="modes"><button class="mode ${mode==='solo'?'active':''}" data-mode="solo">🏆<br>Ranked</button><button class="mode ${mode==='cpu'?'active':''}" data-mode="cpu">🤖<br>Training</button><button class="mode ${mode==='local'?'active':''}" data-mode="local">👥<br>Multiplayer</button><button class="mode ${mode==='compete'?'active':''}" data-mode="compete">🌐<br>Compete</button></div><div class="bk-mode-help" id="bk-mode-help"></div><div id="bk-standard-options" ${mode==='compete'?'hidden':''}><label>Time per turn</label><select id="duration">${[10,20,30,40,50,60].map(n=>`<option value="${n}" ${n===duration?'selected':''}>${n} seconds${n===20?' (default)':''}</option>`).join('')}</select><div id="playerSettings"></div><button class="primary" id="start" style="margin-top:20px">Start game →</button></div><div id="bk-compete-slot" ${mode==='compete'?'':'hidden'} style="margin-top:18px"></div></section>`;const competeSlot=document.getElementById("bk-compete-slot");if(privateRoot&&competeSlot)competeSlot.appendChild(privateRoot);if(privateRoot)privateRoot.hidden=mode!=='compete';
