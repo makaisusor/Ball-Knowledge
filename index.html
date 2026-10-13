@@ -31,8 +31,8 @@ async function loadCurrentMLBPlayers(){
   let added=0;
   for(const item of data.players){
    if(!item||!Number.isInteger(item.mlbId)||typeof item.name!=='string')continue;
-   const name=item.name.trim().replace(/\\s+/g,' ');
-   const parts=name.split(/\\s+/);
+   const name=item.name.trim().replace(/\s+/g,' ');
+   const parts=name.split(/\s+/);
    if(parts.length<2)continue;
    const key=norm(name);
    if(byName.has(key))continue;
