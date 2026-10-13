@@ -1,0 +1,36 @@
+
+name: Update MLB Players
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 10 * * *"
+
+permissions:
+  contents: write
+
+jobs:
+  update-players:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Download MLB player data
+        run: python scripts/update_mlb_players.py
+
+      - name: Commit updated player data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add mlb-players-latest.json
+          if ! git diff --cached --quiet; then
+            git commit -m "Update MLB player database"
+            git push
+          fi
