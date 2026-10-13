@@ -8,7 +8,72 @@
 #bk-player-modal .bk-modal-top button{background:#243247;border:1px solid #41516a;color:white;border-radius:8px;padding:7px 12px;cursor:pointer}
 #bk-player-modal a{color:#67f1ad;text-decoration:underline}#bk-player-modal .bk-stat-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin:14px 0}#bk-player-modal .bk-stat{background:#0a1422;border:1px solid #28374d;border-radius:10px;padding:10px 6px;text-align:center}#bk-player-modal .bk-stat b{display:block;font-size:19px;color:#f4f7fc}#bk-player-modal .bk-stat small{color:#99abc5;font-size:11px}#bk-player-modal .bk-modal-card{max-height:85vh;overflow:auto}
 .bk-history-player{background:none;border:0;color:#8be9bb;text-decoration:underline;cursor:pointer;padding:0;font:inherit;text-align:left}
-</style></head><body class="bk-before-entry"><main><header><h1>⚾ BALL <span class="brand">KNOWLEDGE</span></h1><span class="tag">MLB · NBA · NFL</span><button id="bk-profile-trigger" type="button" aria-label="Open profile menu" aria-expanded="false">👤 <span id="bk-profile-label">Profile</span> ▾</button></header><style>#bk-auth{max-width:750px;margin:0 auto;padding:0 17px 12px}#bk-auth .authbar{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#121c2d;border:1px solid #28374d;border-radius:12px;padding:12px}#bk-auth button{border:1px solid #41516a;background:#243247;color:#fff;border-radius:9px;padding:10px 12px;cursor:pointer}#bk-auth .authform{margin-top:10px;background:#121c2d;border:1px solid #28374d;border-radius:12px;padding:15px}#bk-auth .authform input{margin:6px 0 12px}#bk-auth .authform button{margin:3px}#bk-auth .authstatus{color:#99abc5;font-size:13px;padding:8px 0}#bk-auth .authstatus.error{color:#ff7187}</style><style>
+</style>
+<!-- Ball Knowledge / Obsidian Green visual system. Gameplay and auth logic unchanged. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style id="bk-obsidian-theme">
+:root{color-scheme:dark;--bg:#090c0d;--panel:#151b1b;--line:#303b38;--text:#f4f7f5;--muted:#9eaeaa;--accent:#65e5ae;--danger:#ff7187}
+html{background:var(--bg)}
+body{background:radial-gradient(ellipse at 50% -25%,#182c25 0%,#090c0d 56%);color:var(--text);font-family:'Inter',system-ui,-apple-system,sans-serif;line-height:1.5}
+main{max-width:790px;padding:26px 18px 72px}
+header{margin-bottom:30px;gap:12px}
+h1,h2,h3,.letter,.timer,.stat b,.bk-league,.bk-gate-title{font-family:'Barlow Condensed','Arial Narrow',Impact,sans-serif;font-weight:800;letter-spacing:.015em}
+h1{font-size:clamp(26px,5vw,34px);line-height:1;letter-spacing:.025em}
+h2{font-size:clamp(30px,5vw,39px);line-height:1.12;letter-spacing:.005em}
+h3{font-size:25px}
+.brand{color:var(--accent)}
+p,.small{color:var(--muted)}
+.panel,#bk-gate,#bk-auth .authbar,#bk-auth .authform,#bk-profile-view .panel{background:#151b1b;border:1px solid var(--line);border-radius:18px;box-shadow:0 12px 40px #0003}
+.panel{padding:26px;margin-bottom:16px}
+.tag{border:1px solid #365c4a;background:#19352a;color:var(--accent);letter-spacing:.09em;text-transform:uppercase}
+.modes{grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:21px 0}
+.mode{min-height:95px;background:#1d2625;border:1px solid var(--line);border-radius:14px;color:var(--text);font-family:'Inter',sans-serif;font-weight:700;font-size:13px;line-height:1.65;transition:background .18s,border-color .18s,transform .18s}
+.mode:hover,.bk-league.available:hover{border-color:#65e5ae;background:#213a30;transform:translateY(-2px)}
+.mode.active{background:#19372b;border-color:var(--accent);color:var(--accent);box-shadow:inset 0 0 0 1px #65e5ae33}
+.bk-mode-help{background:#111918;border:1px solid var(--line);border-radius:12px;padding:15px 17px}
+input,select,textarea,#bk-profile-view textarea{background:#0c1212;border:1px solid #3b4945;color:var(--text);border-radius:11px;font-family:'Inter',sans-serif}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);outline:2px solid #65e5ae26;outline-offset:1px}
+button{font-family:'Inter',sans-serif}
+button.primary,#bk-gate #bk-gate-login{background:var(--accent);color:#08130f;border:0;font-weight:800;border-radius:11px;transition:filter .18s,transform .18s}
+button.primary:hover,#bk-gate #bk-gate-login:hover{filter:brightness(1.08);transform:translateY(-1px)}
+button.secondary,#bk-auth button,#bk-gate button{background:#202a28;border:1px solid #3b4945;color:var(--text);border-radius:11px}
+button.secondary:hover,#bk-auth button:hover{background:#2a3a34;border-color:#5b8872}
+.stat{background:#1d2625;border-color:var(--line);border-radius:13px}
+.stat b{font-size:36px;color:var(--accent);line-height:1}
+.stat span{color:var(--muted)}
+.timer{font-size:clamp(55px,12vw,82px);line-height:1;font-variant-numeric:tabular-nums;color:var(--accent)}
+.timer.urgent{color:var(--danger)}
+.letter{font-size:clamp(100px,25vw,180px);line-height:.9;color:var(--accent);text-shadow:0 0 40px #65e5ae13}
+.suggest{position:relative}.suggestions{background:#1d2625;border-color:#41544a}.suggestions button{border-bottom-color:#303b38}.suggestions button:active{background:#294a3b}
+.notice{background:#20312a;color:var(--text)}.notice.bad{background:#502631}
+.pill,.playerchip{background:#25342e}.history li{border-bottom-color:var(--line)}
+.bk-history-player{color:var(--accent)}
+#bk-gate{background:#151b1b;border-color:var(--line);max-width:570px;padding:35px 28px}
+#bk-gate h2{font-size:clamp(35px,7vw,48px)}
+#bk-gate p{color:var(--muted)}
+.bk-leagues{gap:12px}
+.bk-league{background:#1d2625;border-color:var(--line);border-radius:16px;min-height:145px;font-size:25px}
+.bk-league.available{background:#19372b;border-color:var(--accent)}
+.bk-league small{font-family:'Inter',sans-serif;color:var(--muted);font-size:11px}
+#bk-profile-trigger{background:#1d2625;border:1px solid var(--line);color:var(--text);border-radius:30px;padding:10px 13px}
+#bk-profile-dropdown{background:#1d2625;border-color:var(--line)}
+#bk-profile-dropdown button:hover{background:#294337}
+#bk-profile-photo{background:#1d2625}
+#bk-auth .authbar,#bk-auth .authform{background:#151b1b;border-color:var(--line)}
+#bk-auth .authstatus{color:var(--muted)}
+#bk-player-modal .bk-modal-card{background:#151b1b;border-color:var(--line)}
+#bk-player-modal .bk-modal-top button{background:#202a28;border-color:var(--line)}
+#bk-player-modal a{color:var(--accent)}
+#bk-player-modal .bk-stat{background:#1d2625;border-color:var(--line)}
+#bk-player-modal .bk-stat b{color:var(--text)}
+#bk-player-modal .bk-stat small{color:var(--muted)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+@media(max-width:560px){main{padding:18px 13px 58px}header{margin-bottom:22px;flex-wrap:wrap}.panel{padding:18px;border-radius:16px}.modes{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}.mode{min-height:82px;padding:12px 7px;font-size:13px}.bk-leagues{gap:8px}.bk-league{min-height:118px;padding:16px 5px;font-size:21px}.bk-league span{font-size:30px}#bk-gate{padding:25px 18px;margin-top:26px}.timer{font-size:64px}.letter{font-size:128px}.actions{flex-wrap:wrap}.actions>*{min-width:120px}}
+@media(prefers-reduced-motion:reduce){.mode,button.primary,.bk-league.available{transition:none!important}.mode:hover,button.primary:hover,.bk-league.available:hover{transform:none!important}}
+</style>
+</head><body class="bk-before-entry"><main><header><h1>⚾ BALL <span class="brand">KNOWLEDGE</span></h1><span class="tag">MLB · NBA · NFL</span><button id="bk-profile-trigger" type="button" aria-label="Open profile menu" aria-expanded="false">👤 <span id="bk-profile-label">Profile</span> ▾</button></header><style>#bk-auth{max-width:750px;margin:0 auto;padding:0 17px 12px}#bk-auth .authbar{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#121c2d;border:1px solid #28374d;border-radius:12px;padding:12px}#bk-auth button{border:1px solid #41516a;background:#243247;color:#fff;border-radius:9px;padding:10px 12px;cursor:pointer}#bk-auth .authform{margin-top:10px;background:#121c2d;border:1px solid #28374d;border-radius:12px;padding:15px}#bk-auth .authform input{margin:6px 0 12px}#bk-auth .authform button{margin:3px}#bk-auth .authstatus{color:#99abc5;font-size:13px;padding:8px 0}#bk-auth .authstatus.error{color:#ff7187}</style><style>
 #bk-gate{max-width:540px;margin:42px auto 0;padding:28px;background:#121c2d;border:1px solid #28374d;border-radius:20px;text-align:center}
 #bk-gate h2{font-size:28px;margin:0 0 12px}#bk-gate p{color:#99abc5}
 #bk-gate button{display:block;width:100%;margin:12px 0;padding:15px;border-radius:11px;border:1px solid #41516a;background:#243247;color:white;font-size:16px;font-weight:700;cursor:pointer}
