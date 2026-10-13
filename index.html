@@ -186,7 +186,18 @@ function render(){if(!isRegistered(user)){root.innerHTML='';return}root.innerHTM
 async function save(){const input=root.querySelector('#bk-account-username'),name=input.value.trim();if(!/^[A-Za-z0-9_]{3,24}$/.test(name)){message('Use 3–24 letters, numbers, or underscores.',true);return}const button=root.querySelector('#bk-account-save');button.disabled=true;message('Saving…');try{const {error}=await sb.from('profiles').upsert({id:user.id,username:name},{onConflict:'id'});if(error)throw error;username=name;window.bkAccountUsername=name;render();if(typeof renderNames==='function'&&document.getElementById('names'))renderNames();message('Username saved!')}catch(e){message(e.code==='23505'?'That username is already taken.':e.message,true);button.disabled=false}}
 async function loadRanks(){const target=root.querySelector('#bk-account-ranks');if(!target)return;const selected=tab;const {data,error}=await sb.rpc('get_global_leaderboard');if(!target.isConnected||tab!==selected)return;if(error){target.innerHTML='<p class="bk-account-msg bad">Leaderboard unavailable: '+esc(error.message||'Network request failed')+'</p><button type="button" id="bk-ranks-retry">Retry leaderboard</button>';target.querySelector('#bk-ranks-retry')?.addEventListener('click',loadRanks);return}const sorted=(data||[]).slice().sort((a,b)=>Number(b[selected]||0)-Number(a[selected]||0)||String(a.username).localeCompare(String(b.username))).slice(0,25);target.innerHTML=sorted.length?sorted.map((r,i)=>'<div class="bk-rank-row"><span>#'+(i+1)+' '+esc(r.username)+'</span><b>'+Number(r[selected]||0).toLocaleString()+'</b></div>').join(''):'<p>No ranked games yet. Be the first when verified scores launch!</p>'}
 if(!sb){root.innerHTML='<p>Account features unavailable. Refresh to retry.</p>';return}
-window.bkSyncAccount=sync;sb.auth.onAuthStateChange(()=>{setTimeout(sync,0)});sync();
+window.bkSyncAccount=sync;
+let accountSyncTimer=null;
+let lastAccountAuthId=null;
+sb.auth.onAuthStateChange((event,session)=>{
+  const nextId=session?.user?.id||null;
+  if(event==='TOKEN_REFRESHED'&&nextId===lastAccountAuthId)return;
+  if(event==='INITIAL_SESSION'&&nextId===lastAccountAuthId)return;
+  lastAccountAuthId=nextId;
+  clearTimeout(accountSyncTimer);
+  accountSyncTimer=setTimeout(sync,250);
+});
+sync();
 })();
 </script>
 <style>
