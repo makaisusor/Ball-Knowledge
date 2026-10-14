@@ -145,23 +145,15 @@ document.getElementById('bk-open-profile').onclick=()=>open('profile');document.
 document.getElementById('bk-menu-signout').onclick=async()=>{drop.hidden=true;try{const {error}=await sb().auth.signOut();if(error)throw error;window.bkReturnToEntry?.()}catch(e){alert(e.message)}};
 document.addEventListener('click',e=>{if(!drop.contains(e.target)&&!trigger.contains(e.target))drop.hidden=true});
 file.onchange=()=>{const f=file.files?.[0];if(!f)return;if(f.size>1024*1024){msg.textContent='Choose a photo under 1 MB.';file.value='';return}const reader=new FileReader();reader.onload=()=>{photo.src=reader.result};reader.readAsDataURL(f)};
-document.getElementById('bk-profile-save').onclick=async()=>{
- const value=bio.value.trim();if(value.length>300)return;
- try{
-  if(current){
-   const data={bio:value};
-   if(photo.src.startsWith('data:image/')&&photo.src!==placeholder){
-    if(photo.src.length>180000){msg.textContent='Please choose a smaller profile photo (under about 120 KB).';return}
-    data.avatar_data=photo.src;
-   }
-   const {error}=await sb().auth.updateUser({data});if(error)throw error;
-   msg.textContent='Profile saved to your account.';
-  }else{
-   if(photo.src.startsWith('data:image/')&&photo.src!==placeholder)localStorage.setItem('bk_photo_guest',photo.src);
-   localStorage.setItem('bk_bio_guest',value);msg.textContent='Guest profile saved on this device.';
-  }
- }catch(e){msg.textContent=e.message||'Could not save profile'}
-};
+// Account profile editing is paused until Supabase account updates are reliable.
+const profileSaveButton=document.getElementById('bk-profile-save');
+profileSaveButton.disabled=true;
+profileSaveButton.textContent='Profile editing temporarily unavailable';
+profileSaveButton.setAttribute('aria-disabled','true');
+file.disabled=true;
+bio.readOnly=true;
+bio.setAttribute('aria-readonly','true');
+msg.textContent='Your existing profile is still visible. Changes are temporarily disabled while account syncing is unavailable.';
 document.getElementById('bk-change-password').onclick=async()=>{
  const field=document.getElementById('bk-new-password'),msg=document.getElementById('bk-password-message');
  if(!current){msg.textContent='Sign in first.';return}
