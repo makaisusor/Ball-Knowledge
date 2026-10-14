@@ -221,19 +221,26 @@ async function refreshGame(){
 async function submitOnline(){
  if(privateBusy||!privateSnapshot||privateSnapshot.status!=='playing')return;
  const input=root.querySelector('#bk-match-answer');if(!input)return;
- const q=input.value.trim(),list=byName.get(norm(q))||[];
+ const q=input.value.trim();if(!q){msg('Enter a player name.',true);return}
+ const list=byName.get(norm(q))||[];
  const used=new Set((privateSnapshot.history||[]).map(h=>h.player_id));
  const p=list.find(x=>!used.has(x.id))||list[0];
- if(!p){msg('Not a recognized MLB player. Try another name.',true);return}
- if(used.has(p.id)){msg('That player was already named.',true);return}
- if(privateSnapshot.last_letter&&initial(p.first)!==privateSnapshot.last_letter){msg('Name must start with '+privateSnapshot.last_letter,true);return}
- privateBusy=true;root.querySelector('#bk-match-submit').disabled=true;
+ const invalid=!p||used.has(p.id)||(privateSnapshot.last_letter&&initial(p.first)!==privateSnapshot.last_letter);
+ const reason=!p?'Invalid MLB player':used.has(p?.id)?'Repeated player':'Wrong starting letter';
+ privateBusy=true;const btn=root.querySelector('#bk-match-submit');btn.disabled=true;
  try{
- const {error}=await sb.rpc('submit_private_answer',{p_room_id:roomId,p_player_id:p.id,p_first_name:p.first,p_last_name:p.last});
- if(error)throw error;
- input.value='';msg('Accepted!');privateBusy=false;await refreshGame();
+  if(invalid){
+   const {error}=await sb.rpc('eliminate_private_player',{p_room_id:roomId});
+   if(error)throw error;
+   msg(reason+' — eliminated.',true);
+  }else{
+   const {error}=await sb.rpc('submit_private_answer',{p_room_id:roomId,p_player_id:p.id,p_first_name:p.first,p_last_name:p.last});
+   if(error)throw error;
+   msg('Accepted!');
+  }
+  input.value='';
  }catch(e){msg(e.message||'Answer failed',true)}
- finally{privateBusy=false;const btn=root.querySelector('#bk-match-submit');if(btn)btn.disabled=false}
+ finally{privateBusy=false;if(root.querySelector('#bk-match-submit'))root.querySelector('#bk-match-submit').disabled=false;await refreshGame()}
 }
 
 open();if(new URLSearchParams(location.search).has('room'))form('join');
