@@ -187,9 +187,10 @@ function lobby(){stop();root.innerHTML='<section class="panel"><h2>Private game 
 let privateBusy=false,privateSnapshot=null,privateClock=null,privateExpireAttempt=0;
 function gameView(){
  stop();if(privateClock)clearInterval(privateClock);
- root.innerHTML='<section class="panel"><div class="row"><span class="tag">ONLINE PRIVATE MATCH</span><span class="bk-code" style="font-size:18px">'+esc(roomCode)+'</span></div><h2 id="bk-match-turn">Loading match…</h2><p id="bk-match-clock"></p><p id="bk-match-chain"></p><div id="bk-match-players"></div><div id="bk-match-input" hidden><label>Enter an MLB player</label><input id="bk-match-answer" autocomplete="off" placeholder="First Last"><button class="primary" id="bk-match-submit">Submit answer</button></div><p class="bk-feedback" role="status"></p><h3>Answer history</h3><div id="bk-match-history"></div><button class="secondary" id="bk-match-exit">Leave match view</button></section>';
+ root.innerHTML='<section class="panel"><div class="row"><span class="tag">ONLINE PRIVATE MATCH</span><span class="bk-code" style="font-size:18px">'+esc(roomCode)+'</span></div><h2 id="bk-match-turn">Loading match…</h2><p id="bk-match-clock"></p><p id="bk-match-chain"></p><div id="bk-match-players"></div><div id="bk-match-input"><label for="bk-match-answer">Enter MLB player</label><input id="bk-match-answer" autocomplete="off" autocapitalize="words" placeholder="Type a full MLB player name…"><div class="actions"><button class="primary" id="bk-match-submit">Submit answer</button><button class="secondary" id="bk-match-giveup">Give up / Eliminate</button></div><p id="bk-match-help"></p></div><p class="bk-feedback" role="status"></p><h3>Answer history</h3><div id="bk-match-history"></div><button class="secondary" id="bk-match-exit">Leave match view</button></section>';
  root.querySelector('#bk-match-exit').onclick=()=>{stop();if(privateClock)clearInterval(privateClock);open()};
  root.querySelector('#bk-match-submit').onclick=submitOnline;
+ root.querySelector('#bk-match-giveup').onclick=()=>eliminateOnline('Gave up');
  root.querySelector('#bk-match-answer').onkeydown=e=>{if(e.key==='Enter')submitOnline()};
  refreshGame();poll=setInterval(refreshGame,1200);
  privateClock=setInterval(updatePrivateClock,200);
@@ -206,7 +207,7 @@ async function refreshGame(){
  try{
  const {data,error}=await sb.rpc('get_private_game',{p_room_id:roomId});if(error)throw error;
  privateSnapshot=data;
- const me=(await sb.auth.getSession()).data.session?.user?.id;
+ const sessionResult=await sb.auth.getSession();const me=sessionResult.data.session?.user?.id;
  const turn=data.players.find(p=>p.seat===data.current_seat);
  const eliminated=new Set(data.eliminated_user_ids||[]);
  const mine=turn?.id===me&&data.status==='playing'&&!eliminated.has(me);
@@ -214,9 +215,20 @@ async function refreshGame(){
  root.querySelector('#bk-match-chain').textContent=data.last_letter?'Next player must start with '+data.last_letter:'Any MLB player can start';
  root.querySelector('#bk-match-players').innerHTML=data.players.map(p=>'<div class="bk-lobby-row">'+esc(p.name)+(eliminated.has(p.id)?' — Eliminated':p.seat===data.current_seat&&data.status==='playing'?' — Playing':'')+'</div>').join('');
  root.querySelector('#bk-match-history').innerHTML=(data.history||[]).map((h,i)=>'<div class="bk-lobby-row">'+(i+1)+'. '+esc(h.name)+' — '+esc(h.by)+'</div>').join('')||'<p>No answers yet</p>';
- root.querySelector('#bk-match-input').hidden=!mine;
+ const entry=root.querySelector('#bk-match-input');entry.hidden=data.status!=='playing';
+ const answer=root.querySelector('#bk-match-answer'),submit=root.querySelector('#bk-match-submit'),giveup=root.querySelector('#bk-match-giveup');
+ answer.disabled=!mine;submit.disabled=!mine||privateBusy;giveup.disabled=!mine||privateBusy;
+ root.querySelector('#bk-match-help').textContent=mine?'Your turn — name a valid MLB player before time runs out.':!me?'Session not detected. Rejoin the room to play.':data.players.some(p=>p.id===me)?'Waiting for '+(turn?.name||'the next player')+' to answer.':'This browser is not signed in as a room player. Join with a separate guest or account session.';
+ if(mine&&!answer.dataset.wasMine){answer.focus()};answer.dataset.wasMine=mine?'1':'';
  updatePrivateClock();
  }catch(e){msg(e.message||'Could not update game',true)}
+}
+async function eliminateOnline(reason){
+ if(privateBusy||!privateSnapshot||privateSnapshot.status!=='playing')return;
+ privateBusy=true;
+ try{const {error}=await sb.rpc('eliminate_private_player',{p_room_id:roomId});if(error)throw error;msg(reason+' — eliminated.',true)}
+ catch(e){msg(e.message||'Could not eliminate player',true)}
+ finally{privateBusy=false;await refreshGame()}
 }
 async function submitOnline(){
  if(privateBusy||!privateSnapshot||privateSnapshot.status!=='playing')return;
