@@ -184,7 +184,7 @@ async function refresh(){if(!roomId)return;const {data,error}=await sb.rpc('get_
 function lobby(){stop();root.innerHTML='<section class="panel"><h2>Private game lobby</h2><div class="bk-code">'+esc(roomCode)+'</div><p id="bk-room-count">Loading players…</p><button class="secondary" id="bk-room-copy">Copy invite link</button><div id="bk-room-players"></div><p id="bk-room-wait"></p><button class="primary" id="bk-room-start" hidden>Start game</button><button class="secondary" id="bk-room-leave">Back to menu</button><p class="bk-feedback" role="status"></p></section>';root.querySelector('#bk-room-copy').onclick=async()=>{try{await navigator.clipboard.writeText(location.origin+location.pathname+'?room='+encodeURIComponent(roomCode));msg('Invite link copied!')}catch{msg('Share this code: '+roomCode)}};root.querySelector('#bk-room-leave').onclick=open;root.querySelector('#bk-room-start').onclick=async()=>{msg('Starting…');const {error}=await sb.rpc('start_private_game',{p_room_id:roomId});if(error)msg(error.message,true);else refresh()};refresh();poll=setInterval(refresh,2500)}
 
 // Private match: server-authoritative turn order and deadlines; poll for state.
-let privateBusy=false,privateSnapshot=null,privateClock=null;
+let privateBusy=false,privateSnapshot=null,privateClock=null,privateExpireAttempt=0;
 function gameView(){
  stop();if(privateClock)clearInterval(privateClock);
  root.innerHTML='<section class="panel"><div class="row"><span class="tag">ONLINE PRIVATE MATCH</span><span class="bk-code" style="font-size:18px">'+esc(roomCode)+'</span></div><h2 id="bk-match-turn">Loading match…</h2><p id="bk-match-clock"></p><p id="bk-match-chain"></p><div id="bk-match-players"></div><div id="bk-match-input" hidden><label>Enter an MLB player</label><input id="bk-match-answer" autocomplete="off" placeholder="First Last"><button class="primary" id="bk-match-submit">Submit answer</button></div><p class="bk-feedback" role="status"></p><h3>Answer history</h3><div id="bk-match-history"></div><button class="secondary" id="bk-match-exit">Leave match view</button></section>';
@@ -199,7 +199,7 @@ function updatePrivateClock(){
  const el=root.querySelector('#bk-match-clock');if(!el)return;
  const ms=privateSnapshot.turn_deadline?new Date(privateSnapshot.turn_deadline).getTime()-Date.now():0;
  el.textContent=privateSnapshot.status==='playing'?'Time remaining: '+Math.max(0,Math.ceil(ms/1000))+' seconds':'';
- if(privateSnapshot.status==='playing'&&ms<=0&&!privateBusy)sb.rpc('expire_private_turn',{p_room_id:roomId}).catch(()=>{});
+ if(privateSnapshot.status==='playing'&&ms<=0&&!privateBusy&&Date.now()-privateExpireAttempt>1500){privateExpireAttempt=Date.now();sb.rpc('expire_private_turn',{p_room_id:roomId}).catch(()=>{});}
 }
 async function refreshGame(){
  if(!roomId||privateBusy)return;
