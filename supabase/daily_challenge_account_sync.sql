@@ -94,8 +94,8 @@ BEGIN
 
   -- Respect the day's first-name letter (including common accent marks).
   v_initial := upper(left(translate(trim(p_first_name),
-    'ÁÉÍÓÚÜÑÀÈÌÒÙÂÊÎÔÛÄËÏÖÜáéíóúüñàèìòùâêîôûäëïöü',
-    'AEIOUUNAEIOUAEIOUAEIOUUaeiouunaeiouaeiouaeiou'),1));
+    'ÁÉÍÓÚÜÑÀÈÌÒÙÂÊÎÔÛÄËÏÖáéíóúüñàèìòùâêîôûäëïö',
+    'AEIOUUNAEIOUAEIOUAEIOaeiouunaeiouaeiouaeio'),1));
   IF v_initial <> v_row.letter THEN RAISE EXCEPTION 'Wrong first-name letter'; END IF;
   IF EXISTS (
     SELECT 1 FROM jsonb_array_elements(v_row.answers) a
