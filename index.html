@@ -689,9 +689,9 @@ const bkDailyNotables={
  W:['Willie Mays','Walter Johnson','Wade Boggs','Willie McCovey','Wander Franco'],
 };
 function bkDailyEligibleMissed(day,answers){
- const letter=bkDailyLetter(day),used=new Set((answers||[]).map(a=>a.id));
+ const letter=bkDailyLetter(day),used=new Set((answers||[]).map(a=>a.id)),usedNames=new Set((answers||[]).map(a=>norm(a.name)));
  const seen=new Set();
- return players.filter(p=>{if(initial(p.first)!==letter||used.has(p.id)||seen.has(p.key))return false;seen.add(p.key);return true})
+ return players.filter(p=>{if(initial(p.first)!==letter||used.has(p.id)||usedNames.has(p.key)||seen.has(p.key))return false;seen.add(p.key);return true})
   .sort((a,b)=>a.name.localeCompare(b.name));
 }
 function bkDailyShowMissed(day,answers){
