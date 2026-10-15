@@ -107,6 +107,29 @@ button.secondary:hover,#bk-auth button:hover{background:#2a3a34;border-color:#5b
 .bk-rank-tier.earned{background:#19372b;border-color:#65e5ae}
 .bk-rank-unlock{position:fixed;left:50%;top:30%;transform:translateX(-50%);z-index:12001;background:#19372b;border:2px solid #65e5ae;border-radius:18px;padding:22px 35px;text-align:center;box-shadow:0 15px 80px #000b;max-width:90vw;color:#65e5ae;font:800 30px 'Barlow Condensed',Impact,sans-serif}
 @media(max-width:450px){.bk-rank-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* MLB daily challenge: 2-minute letter game, archive, and welcome prompt. */
+.bk-daily-feature{margin:18px 0 14px;padding:21px;border:1px solid #65e5ae80;border-radius:16px;background:linear-gradient(135deg,#19392d,#101c1a);text-align:center}
+.bk-daily-feature h3{margin:6px 0 7px;font-size:24px;color:var(--text)}
+.bk-daily-feature p{margin:6px auto 14px;max-width:470px;color:var(--muted)}
+.bk-daily-feature .actions{justify-content:center;flex-wrap:wrap}
+.bk-daily-eyebrow{color:var(--accent);font-weight:800;font-size:12px;letter-spacing:1.4px;text-transform:uppercase}
+.bk-daily-overlay{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;background:#050b0bda;padding:16px}
+.bk-daily-dialog{max-width:480px;width:100%;position:relative;background:#152320;border:1px solid #65e5ae77;border-radius:20px;padding:28px 22px;text-align:center;box-shadow:0 18px 70px #000a}
+.bk-daily-dialog .bk-daily-close{position:absolute;top:8px;right:10px;background:transparent;color:var(--text);border:0;font-size:27px;cursor:pointer;padding:8px 12px}
+.bk-daily-dialog h2{margin-top:10px}
+.bk-daily-letter{font-size:clamp(64px,15vw,100px);font-weight:900;line-height:1.1;color:var(--accent);text-shadow:0 0 32px #65e5ae35}
+.bk-daily-toolbar{display:flex;gap:12px;justify-content:space-between;align-items:center;flex-wrap:wrap}
+.bk-daily-toolbar .tag{font-size:13px}
+.bk-daily-answer-row{display:flex;gap:10px}
+.bk-daily-answer-row input{min-width:0;flex:1}
+.bk-daily-history{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}
+.bk-daily-history span{border:1px solid var(--line);border-radius:999px;padding:6px 10px;font-size:13px}
+.bk-daily-archive-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:18px}
+.bk-daily-archive-list button{text-align:left;padding:13px;background:#202d29;border:1px solid var(--line);border-radius:11px;color:var(--text);cursor:pointer}
+.bk-daily-archive-list button:hover{border-color:var(--accent)}
+.bk-daily-archive-list small{display:block;color:var(--muted);margin-top:5px}
+@media(max-width:480px){.bk-daily-answer-row{flex-direction:column}.bk-daily-archive-list{grid-template-columns:1fr}.bk-daily-dialog{padding:26px 17px}}
 </style></head><body class="bk-before-entry"><main><header><h1><button id="bk-logo-home" type="button" aria-label="Ball Knowledge — return home" title="Return home" style="all:unset;cursor:pointer;display:inline-block">⚾ BALL <span class="brand">KNOWLEDGE</span></button></h1><span class="tag">MLB · NBA · NFL</span><button id="bk-profile-trigger" type="button" aria-label="Open profile menu" aria-expanded="false">👤 <span id="bk-profile-label">Profile</span> ▾</button></header><style>#bk-auth{max-width:750px;margin:0 auto;padding:0 17px 12px}#bk-auth .authbar{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#121c2d;border:1px solid #28374d;border-radius:12px;padding:12px}#bk-auth button{border:1px solid #41516a;background:#243247;color:#fff;border-radius:9px;padding:10px 12px;cursor:pointer}#bk-auth .authform{margin-top:10px;background:#121c2d;border:1px solid #28374d;border-radius:12px;padding:15px}#bk-auth .authform input{margin:6px 0 12px}#bk-auth .authform button{margin:3px}#bk-auth .authstatus{color:#99abc5;font-size:13px;padding:8px 0}#bk-auth .authstatus.error{color:#ff7187}</style><style>
 #bk-gate{max-width:540px;margin:42px auto 0;padding:28px;background:#121c2d;border:1px solid #28374d;border-radius:20px;text-align:center}
 #bk-gate h2{font-size:28px;margin:0 0 12px}#bk-gate p{color:#99abc5}
@@ -317,9 +340,109 @@ function getScores(){try{return JSON.parse(localStorage.getItem('bk_scores_v1')|
 function saveScores(rows){try{localStorage.setItem('bk_scores_v1',JSON.stringify(rows.slice(-200)))}catch{}}
 async function bkRecordGlobalGame(g){ /* Global score syncing paused; local scores remain available. */ }
 function stopTimer(){if(ticker)clearInterval(ticker);ticker=null}
-function leagueMenu(){if(game&&!game.done)return;stopTimer();game=null;const privateRoot=document.getElementById('bk-private');if(privateRoot&&privateRoot.parentElement!==document.body)document.body.appendChild(privateRoot);app.innerHTML=`<section class="panel"><h2>Choose your league</h2><p>Test your sports knowledge. Select a league to start playing.</p><div class="bk-leagues"><button class="bk-league available" id="bk-mlb"><img class="bk-league-logo mlb" src="https://www.mlbstatic.com/team-logos/league-on-dark/1.svg" alt="MLB logo" loading="lazy" onerror="this.onerror=null;this.src='https://www.mlbstatic.com/team-logos/league/1.svg'">MLB<small>Play now →</small></button><button class="bk-league soon" disabled><img class="bk-league-logo nba" src="https://upload.wikimedia.org/wikipedia/en/0/03/National_Basketball_Association_logo.svg" alt="NBA logo" loading="lazy" onerror="this.style.display='none'">NBA<small>Coming soon</small></button><button class="bk-league soon" disabled><img class="bk-league-logo nfl" src="https://upload.wikimedia.org/wikipedia/en/a/a2/National_Football_League_logo.svg" alt="NFL logo" loading="lazy" onerror="this.style.display='none'">NFL<small>Coming soon</small></button></div></section>`;document.getElementById('bk-mlb').onclick=menu}
-function menu(){if(mode==='compete')mode='solo';stopTimer();game=null;const privateRoot=document.getElementById('bk-private');if(privateRoot&&privateRoot.parentElement!==document.body)document.body.appendChild(privateRoot);app.innerHTML=`<section class="panel"><button class="secondary" id="bk-back-leagues" style="margin-bottom:18px">← All leagues</button><h2>⚾ MLB — Know ball? Prove it.</h2><p>Build the longest MLB name chain. The next player's first name must start with the first letter of the previous player's last name. No repeats.</p><div class="modes"><button class="mode ${mode==='solo'?'active':''}" data-mode="solo">🏆<br>Ranked</button><button class="mode ${mode==='cpu'?'active':''}" data-mode="cpu">🤖<br>Training</button><button class="mode ${mode==='local'?'active':''}" data-mode="local">👥<br>Multiplayer</button><button class="mode" disabled aria-disabled="true" style="opacity:.48;cursor:not-allowed">🌐<br>Compete<small style="display:block;font-size:11px;margin-top:6px">Coming soon</small></button></div><div class="bk-mode-help" id="bk-mode-help"></div><div id="bk-standard-options" ${mode==='compete'?'hidden':''}><label>Time per turn</label><select id="duration">${[10,20,30,40,50,60].map(n=>`<option value="${n}" ${n===duration?'selected':''}>${n} seconds${n===20?' (default)':''}</option>`).join('')}</select><div id="playerSettings"></div><button class="primary" id="start" style="margin-top:20px">Start game →</button></div><div id="bk-compete-slot" ${mode==='compete'?'':'hidden'} style="margin-top:18px"></div></section>`;const competeSlot=document.getElementById("bk-compete-slot");if(privateRoot&&competeSlot)competeSlot.appendChild(privateRoot);if(privateRoot){privateRoot.hidden=mode!=='compete';if(mode==='compete'){privateRoot.style.display='block';privateRoot.style.pointerEvents='auto';}else privateRoot.style.display='none';}
-app.querySelector('#bk-back-leagues').onclick=leagueMenu;app.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{mode=b.dataset.mode;menu()});const help={solo:'<b>🏆 Ranked</b><p>Play solo and build the longest MLB player-name chain you can. Each answer must follow the last-name letter rule. One wrong answer or an expired timer ends your run. Verified leaderboard scoring is coming soon.</p>',cpu:'<b>🤖 Training</b><p>Practice against the computer. Take turns naming valid MLB players without repeats. If you run out of time or answer incorrectly, you lose.</p>',local:'<b>👥 Multiplayer</b><p>Play with 2–8 people on the same device. Pass the device after each turn; the last player remaining wins.</p>',compete:'<b>🌐 Compete Online</b><p>Create a private room or join friends using a six-character invite code. Up to 12 players can play online.</p>'};app.querySelector('#bk-mode-help').innerHTML=help[mode];const durationSelect=app.querySelector('#duration');if(durationSelect)durationSelect.onchange=e=>{duration=+e.target.value};const startButton=app.querySelector('#start');if(startButton)startButton.onclick=start;renderSettings()}
+
+/* Daily challenge engine. All dates use UTC so everyone gets the same letter.
+   Scores are stored on this device; account-synced scores require a future backend. */
+const bkDailyLetters=['M','S','A','J','B','C','D','R','T','P','L','E','K','F','G','H','N','W','O','V'];
+let bkDailyRound=null,bkDailyTicker=null;
+const bkDailyToday=()=>new Date().toISOString().slice(0,10);
+function bkDailyDate(offset=0){const d=new Date(bkDailyToday()+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+offset);return d.toISOString().slice(0,10)}
+function bkDailyLetter(day){const number=Math.floor(Date.parse(day+'T00:00:00Z')/86400000);return bkDailyLetters[((number%bkDailyLetters.length)+bkDailyLetters.length)%bkDailyLetters.length]}
+function bkDailyTitle(day){return new Date(day+'T12:00:00Z').toLocaleDateString(undefined,{month:'short',day:'numeric',year:'numeric',timeZone:'UTC'})}
+function bkDailyKey(day){return 'bk_letter_daily_v1_'+day}
+function bkDailyRead(day){
+ try{const row=JSON.parse(localStorage.getItem(bkDailyKey(day))||'null');if(!row||!Array.isArray(row.answers))return null;
+ if(!row.completed&&Number.isFinite(row.deadline)&&Date.now()>=row.deadline){row.completed=true;bkDailySave(day,row)}
+ return row;
+ }catch{return null}
+}
+function bkDailySave(day,row){try{localStorage.setItem(bkDailyKey(day),JSON.stringify(row))}catch{}}
+function bkDailyPromptKey(){return 'bk_letter_prompt_v1_'+bkDailyToday()}
+function bkDailyDismiss(){const overlay=document.getElementById('bk-daily-overlay');if(overlay)overlay.remove();try{localStorage.setItem(bkDailyPromptKey(),'1')}catch{}}
+function bkDailyStop(){if(bkDailyTicker){clearInterval(bkDailyTicker);bkDailyTicker=null}bkDailyRound=null;bkDailyDismiss()}
+function bkDailyFeatureMarkup(){
+ const today=bkDailyToday(),row=bkDailyRead(today);
+ const status=row?.completed?'Completed · '+row.answers.length+' names':row?'Continue your attempt':'Two minutes · One daily attempt';
+ return '<section class="bk-daily-feature"><div class="bk-daily-eyebrow">⚾ Featured daily challenge</div><h3>Letter of the Day: '+bkDailyLetter(today)+'</h3><p>How many MLB players with first names starting with <b>'+bkDailyLetter(today)+'</b> can you name in 2 minutes?</p><div class="bk-daily-eyebrow" style="letter-spacing:0;text-transform:none">'+safe(status)+'</div><div class="actions"><button type="button" class="primary" id="bk-daily-feature-play">'+(row?.completed?'See today’s results':row?'Resume Daily Challenge':'Play Daily Challenge')+'</button><button type="button" class="secondary" id="bk-daily-feature-archive">Past challenges</button></div></section>';
+}
+function bkDailyMaybePrompt(){
+ const day=bkDailyToday(),row=bkDailyRead(day);
+ try{if(localStorage.getItem(bkDailyPromptKey())==='1')return}catch{}
+ if(row?.completed)return;
+ bkDailyDismiss();
+ const overlay=document.createElement('div');overlay.id='bk-daily-overlay';overlay.className='bk-daily-overlay';
+ overlay.setAttribute('role','presentation');
+ overlay.innerHTML='<section class="bk-daily-dialog" role="dialog" aria-modal="true" aria-labelledby="bk-daily-dialog-title"><button type="button" class="bk-daily-close" id="bk-daily-close" aria-label="Dismiss daily challenge">×</button><div class="bk-daily-eyebrow">Your MLB daily challenge</div><h2 id="bk-daily-dialog-title">Letter of the Day</h2><div class="bk-daily-letter">'+bkDailyLetter(day)+'</div><p>Name as many MLB players whose <b>first name</b> starts with '+bkDailyLetter(day)+' as possible in <b>2 minutes</b>.</p><p style="font-size:13px">One scored attempt today. Past letters are replayable any time.</p><div class="actions" style="justify-content:center"><button class="primary" id="bk-daily-prompt-play">'+(row?'Resume Challenge':'Play Today')+'</button><button class="secondary" id="bk-daily-prompt-skip">Not now</button></div></section>';
+ document.body.appendChild(overlay);
+ overlay.querySelector('#bk-daily-close').onclick=bkDailyDismiss;
+ overlay.querySelector('#bk-daily-prompt-skip').onclick=bkDailyDismiss;
+ overlay.querySelector('#bk-daily-prompt-play').onclick=()=>{bkDailyDismiss();bkDailyOpen(day,false)};
+ overlay.addEventListener('click',e=>{if(e.target===overlay)bkDailyDismiss()});
+}
+function bkDailyOpen(day,practice){
+ bkDailyStop();
+ const isToday=day===bkDailyToday();
+ if(!isToday)practice=true;
+ if(isToday&&!practice){
+  const saved=bkDailyRead(day);
+  if(saved?.completed){bkDailyResults(day,saved,false);return}
+  bkDailyRound=saved&&Number.isFinite(saved.deadline)?{day,practice:false,letter:bkDailyLetter(day),deadline:saved.deadline,answers:saved.answers.slice()}:null;
+  if(!bkDailyRound){bkDailyRound={day,practice:false,letter:bkDailyLetter(day),deadline:Date.now()+120000,answers:[]};bkDailySave(day,{deadline:bkDailyRound.deadline,answers:[],completed:false})}
+ }else bkDailyRound={day,practice:true,letter:bkDailyLetter(day),deadline:Date.now()+120000,answers:[]};
+ bkDailyRenderGame();
+}
+function bkDailyRenderGame(){
+ const round=bkDailyRound;if(!round)return;
+ if(Date.now()>=round.deadline){bkDailyFinish();return}
+ app.innerHTML='<section class="panel"><div class="bk-daily-toolbar"><span class="tag">⚾ '+(round.practice?'ARCHIVE PRACTICE':'TODAY\'S CHALLENGE')+'</span><button class="secondary" id="bk-daily-exit">← Game modes</button></div><h2 style="margin-top:16px">Letter of the Day · '+safe(bkDailyTitle(round.day))+'</h2><div class="bk-daily-letter">'+round.letter+'</div><p>Name as many MLB players whose <b>first name</b> starts with '+round.letter+' as you can. No repeats.</p><div class="stats"><div class="stat"><b id="bk-daily-score">'+round.answers.length+'</b><span>Correct names</span></div><div class="stat"><b id="bk-daily-clock" class="timer">2:00</b><span>Time remaining</span></div></div><div class="bk-daily-answer-row"><input id="bk-daily-name" aria-label="MLB player full name" placeholder="Type a player’s full name" autocomplete="off" autocapitalize="words"><button class="primary" id="bk-daily-submit">Submit</button></div><p id="bk-daily-feedback" role="status" class="bk-feedback"></p><h3>Players named</h3><div class="bk-daily-history" id="bk-daily-history"></div><p style="font-size:12px;color:var(--muted)">'+(round.practice?'Practice run · does not replace your daily score':'Your daily attempt continues counting down if you leave this screen. Progress is saved on this browser.')+'</p></section>';
+ app.querySelector('#bk-daily-exit').onclick=()=>{bkDailyStop();menu()};
+ app.querySelector('#bk-daily-submit').onclick=bkDailySubmit;
+ app.querySelector('#bk-daily-name').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();bkDailySubmit()}};
+ bkDailyDrawHistory();bkDailyTick();bkDailyTicker=setInterval(bkDailyTick,200);
+ app.querySelector('#bk-daily-name').focus();
+}
+function bkDailyDrawHistory(){const r=bkDailyRound;if(!r)return;const el=app.querySelector('#bk-daily-history');if(el)el.innerHTML=r.answers.map(a=>'<span>'+safe(a.name)+'</span>').join('')||'<span style="color:var(--muted)">No players entered yet</span>';const score=app.querySelector('#bk-daily-score');if(score)score.textContent=r.answers.length}
+function bkDailyTick(){if(!bkDailyRound)return;const remaining=bkDailyRound.deadline-Date.now();if(remaining<=0){bkDailyFinish();return}const seconds=Math.ceil(remaining/1000),timer=app.querySelector('#bk-daily-clock');if(timer)timer.textContent=Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0')}
+function bkDailySubmit(){
+ const r=bkDailyRound,input=app.querySelector('#bk-daily-name'),feedback=app.querySelector('#bk-daily-feedback');if(!r||!input||!feedback)return;
+ if(Date.now()>=r.deadline){bkDailyFinish();return}
+ const entered=input.value.trim(),matches=byName.get(norm(entered))||[];
+ const used=new Set(r.answers.map(a=>a.id));
+ const player=matches.find(p=>initial(p.first)===r.letter&&!used.has(p.id));
+ if(!entered){feedback.textContent='Enter a player name.';return}
+ if(player){r.answers.push({id:player.id,name:player.name});if(!r.practice)bkDailySave(r.day,{deadline:r.deadline,answers:r.answers,completed:false});feedback.textContent='✓ '+player.name+' accepted!';input.value='';bkDailyDrawHistory()}
+ else if(matches.some(p=>initial(p.first)===r.letter)){feedback.textContent='Already used that player.'}
+ else if(matches.length){feedback.textContent='That player’s first name must start with '+r.letter+'.'}
+ else feedback.textContent='That name is not in the MLB player database.';
+ input.focus();
+}
+function bkDailyFinish(){
+ const r=bkDailyRound;if(!r)return;
+ if(bkDailyTicker){clearInterval(bkDailyTicker);bkDailyTicker=null}
+ const result={deadline:r.deadline,answers:r.answers,completed:true};
+ if(!r.practice)bkDailySave(r.day,result);
+ else{try{const k='bk_letter_practice_best_v1_'+r.day;localStorage.setItem(k,String(Math.max(Number(localStorage.getItem(k)||0),r.answers.length)))}catch{}}
+ bkDailyRound=null;bkDailyResults(r.day,result,r.practice);
+}
+function bkDailyResults(day,result,practice){
+ const score=Array.isArray(result.answers)?result.answers.length:0;
+ app.innerHTML='<section class="panel" style="text-align:center"><div class="bk-daily-eyebrow">⚾ '+(practice?'Archive practice complete':'Daily Challenge complete')+'</div><h2 style="margin-top:10px">Letter '+bkDailyLetter(day)+' · '+safe(bkDailyTitle(day))+'</h2><div class="bk-daily-letter">'+score+'</div><p>MLB players named in 2 minutes</p><div class="actions" style="justify-content:center"><button type="button" class="primary" id="bk-daily-results-menu">Game modes</button><button type="button" class="secondary" id="bk-daily-results-archive">Past challenges</button><button type="button" class="secondary" id="bk-daily-results-copy">Share result</button>'+(practice?'<button type="button" class="secondary" id="bk-daily-results-retry">Play again</button>':'')+'</div><div class="bk-daily-history" style="justify-content:center">'+(result.answers||[]).map(a=>'<span>'+safe(a.name)+'</span>').join('')+'</div><p style="font-size:12px;color:var(--muted)">'+(practice?'Archive replays are practice and do not change today’s result.':'This daily score is saved on this browser, not yet synced to your account.')+'</p></section>';
+ app.querySelector('#bk-daily-results-menu').onclick=menu;
+ app.querySelector('#bk-daily-results-archive').onclick=bkDailyArchive;
+ app.querySelector('#bk-daily-results-copy').onclick=()=>{const share='⚾ Ball Knowledge · '+(practice?'Archive practice':'Daily Letter')+' '+bkDailyTitle(day)+'\nLetter: '+bkDailyLetter(day)+'\n'+score+' MLB players in 2 minutes!\nhttps://playballknowledge.github.io/';if(navigator.clipboard?.writeText)navigator.clipboard.writeText(share).then(()=>alert('Result copied!')).catch(()=>prompt('Copy your result:',share));else prompt('Copy your result:',share)};
+ const retry=app.querySelector('#bk-daily-results-retry');if(retry)retry.onclick=()=>bkDailyOpen(day,true);
+}
+function bkDailyArchive(){
+ bkDailyStop();
+ const days=Array.from({length:30},(_,i)=>bkDailyDate(-i-1));
+ app.innerHTML='<section class="panel"><button class="secondary" id="bk-daily-archive-back">← Game modes</button><h2 style="margin-top:16px">Past Daily Challenges</h2><p>Replay any of the previous 30 letters for practice. You have 2 minutes per challenge, and your score today stays unchanged.</p><div class="bk-daily-archive-list">'+days.map(day=>{let best='';try{const score=localStorage.getItem('bk_letter_practice_best_v1_'+day);const official=bkDailyRead(day);best=score?'Practice best: '+score:official?.completed?'Original score: '+official.answers.length:'Not played'}catch{best='Practice'}return '<button type="button" data-bk-day="'+day+'"><b>'+safe(bkDailyTitle(day))+' · Letter '+bkDailyLetter(day)+'</b><small>'+safe(best)+' · Play →</small></button>'}).join('')+'</div></section>';
+ app.querySelector('#bk-daily-archive-back').onclick=menu;
+ app.querySelectorAll('[data-bk-day]').forEach(button=>button.onclick=()=>bkDailyOpen(button.dataset.bkDay,true));
+}
+
+function leagueMenu(){if(game&&!game.done)return;bkDailyStop();stopTimer();game=null;const privateRoot=document.getElementById('bk-private');if(privateRoot&&privateRoot.parentElement!==document.body)document.body.appendChild(privateRoot);app.innerHTML=`<section class="panel"><h2>Choose your league</h2><p>Test your sports knowledge. Select a league to start playing.</p><div class="bk-leagues"><button class="bk-league available" id="bk-mlb"><img class="bk-league-logo mlb" src="https://www.mlbstatic.com/team-logos/league-on-dark/1.svg" alt="MLB logo" loading="lazy" onerror="this.onerror=null;this.src='https://www.mlbstatic.com/team-logos/league/1.svg'">MLB<small>Play now →</small></button><button class="bk-league soon" disabled><img class="bk-league-logo nba" src="https://upload.wikimedia.org/wikipedia/en/0/03/National_Basketball_Association_logo.svg" alt="NBA logo" loading="lazy" onerror="this.style.display='none'">NBA<small>Coming soon</small></button><button class="bk-league soon" disabled><img class="bk-league-logo nfl" src="https://upload.wikimedia.org/wikipedia/en/a/a2/National_Football_League_logo.svg" alt="NFL logo" loading="lazy" onerror="this.style.display='none'">NFL<small>Coming soon</small></button></div></section>`;document.getElementById('bk-mlb').onclick=()=>{menu();bkDailyMaybePrompt()}}
+function menu(){bkDailyStop();if(mode==='compete')mode='solo';stopTimer();game=null;const privateRoot=document.getElementById('bk-private');if(privateRoot&&privateRoot.parentElement!==document.body)document.body.appendChild(privateRoot);app.innerHTML=`<section class="panel"><button class="secondary" id="bk-back-leagues" style="margin-bottom:18px">← All leagues</button><h2>⚾ MLB — Know ball? Prove it.</h2><p>Build the longest MLB name chain. The next player's first name must start with the first letter of the previous player's last name. No repeats.</p>${bkDailyFeatureMarkup()}<div class="modes"><button class="mode ${mode==='solo'?'active':''}" data-mode="solo">🏆<br>Ranked</button><button class="mode ${mode==='cpu'?'active':''}" data-mode="cpu">🤖<br>Training</button><button class="mode ${mode==='local'?'active':''}" data-mode="local">👥<br>Multiplayer</button><button class="mode" disabled aria-disabled="true" style="opacity:.48;cursor:not-allowed">🌐<br>Compete<small style="display:block;font-size:11px;margin-top:6px">Coming soon</small></button></div><div class="bk-mode-help" id="bk-mode-help"></div><div id="bk-standard-options" ${mode==='compete'?'hidden':''}><label>Time per turn</label><select id="duration">${[10,20,30,40,50,60].map(n=>`<option value="${n}" ${n===duration?'selected':''}>${n} seconds${n===20?' (default)':''}</option>`).join('')}</select><div id="playerSettings"></div><button class="primary" id="start" style="margin-top:20px">Start game →</button></div><div id="bk-compete-slot" ${mode==='compete'?'':'hidden'} style="margin-top:18px"></div></section>`;const competeSlot=document.getElementById("bk-compete-slot");if(privateRoot&&competeSlot)competeSlot.appendChild(privateRoot);if(privateRoot){privateRoot.hidden=mode!=='compete';if(mode==='compete'){privateRoot.style.display='block';privateRoot.style.pointerEvents='auto';}else privateRoot.style.display='none';}
+app.querySelector('#bk-daily-feature-play').onclick=()=>bkDailyOpen(bkDailyToday(),false);app.querySelector('#bk-daily-feature-archive').onclick=bkDailyArchive;app.querySelector('#bk-back-leagues').onclick=leagueMenu;app.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{mode=b.dataset.mode;menu()});const help={solo:'<b>🏆 Ranked</b><p>Play solo and build the longest MLB player-name chain you can. Each answer must follow the last-name letter rule. One wrong answer or an expired timer ends your run. Verified leaderboard scoring is coming soon.</p>',cpu:'<b>🤖 Training</b><p>Practice against the computer. Take turns naming valid MLB players without repeats. If you run out of time or answer incorrectly, you lose.</p>',local:'<b>👥 Multiplayer</b><p>Play with 2–8 people on the same device. Pass the device after each turn; the last player remaining wins.</p>',compete:'<b>🌐 Compete Online</b><p>Create a private room or join friends using a six-character invite code. Up to 12 players can play online.</p>'};app.querySelector('#bk-mode-help').innerHTML=help[mode];const durationSelect=app.querySelector('#duration');if(durationSelect)durationSelect.onchange=e=>{duration=+e.target.value};const startButton=app.querySelector('#start');if(startButton)startButton.onclick=start;renderSettings()}
 function renderSettings(){if(mode==='compete')return;let root=document.getElementById('playerSettings');root.innerHTML=`${mode==='local'?`<label>Players (2–8)</label><select id="count">${Array.from({length:7},(_,i)=>i+2).map(n=>`<option ${n===count?'selected':''}>${n}</option>`).join('')}</select>`:''}<label>${mode==='local'?'Player names':'Your name'}</label><div id="names"></div>`;if(mode==='local')root.querySelector('#count').onchange=e=>{count=+e.target.value;renderNames()};renderNames()}
 function renderNames(){let n=mode==='local'?count:1;document.getElementById('names').innerHTML=Array.from({length:n},(_,i)=>`<input style="margin:5px 0" maxlength="24" class="profileName" value="${safe(i===0&&mode!=='local'&&window.bkAccountUsername?window.bkAccountUsername:(profiles[i]||'Player '+(i+1)))}" aria-label="Player ${i+1} name">`).join('')}
 function showScores(){let rows=getScores().sort((a,b)=>b.chain-a.chain).slice(0,10);if(!document.getElementById('scores'))return;document.getElementById('scores').innerHTML=rows.length?`<ol class="history">${rows.map(r=>`<li><span>${safe(r.name)} <small>· ${safe(r.mode)}</small></span><b>${r.chain} answers</b></li>`).join('')}</ol>`:'<p>No games played yet. Be the first!</p>'}
