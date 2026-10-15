@@ -303,6 +303,53 @@ async function loadCurrentMLBPlayers(){
 loadCurrentMLBPlayers();
 function norm(s){return String(s).normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/gi,'').toLowerCase()}
 function initial(s){return (s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').match(/[a-z]/i)||[''])[0].toUpperCase()}
+
+/* Conservative MLB typo matching: require both a first and last name and preserve the first initial. */
+function bkBoundedDistance(a,b,limit){
+ if(Math.abs(a.length-b.length)>limit)return limit+1;
+ let prev=Array.from({length:b.length+1},(_,i)=>i);
+ for(let i=1;i<=a.length;i++){
+  const next=[i];let best=i;
+  for(let j=1;j<=b.length;j++){
+   const value=Math.min(prev[j]+1,next[j-1]+1,prev[j-1]+(a[i-1]===b[j-1]?0:1));
+   next.push(value);if(value<best)best=value;
+  }
+  if(best>limit)return limit+1;
+  prev=next;
+ }
+ return prev[b.length];
+}
+function bkSpellingMatches(typed,requiredLetter,usedIds){
+ const words=typed.trim().split(/\s+/).filter(Boolean);
+ if(words.length<2)return [];
+ const given=norm(words[0]),surname=norm(words.slice(1).join(''));
+ if(given.length<2||surname.length<3)return [];
+ const candidates=[];
+ for(const p of players){
+  if(requiredLetter&&initial(p.first)!==requiredLetter)continue;
+  if(usedIds?.has(p.id))continue;
+  const first=norm(p.first),last=norm(p.last);
+  if(first[0]!==given[0])continue;
+  const flimit=given.length>=4&&first.length>=4?1:0;
+  const fd=bkBoundedDistance(given,first,flimit);if(fd>flimit)continue;
+  const llimit=Math.min(surname.length,last.length)>=7?2:1;
+  const ld=bkBoundedDistance(surname,last,llimit);if(ld>llimit||fd+ld>2||fd+ld===0)continue;
+  candidates.push({player:p,cost:fd+ld});
+ }
+ candidates.sort((a,b)=>a.cost-b.cost||a.player.name.localeCompare(b.player.name));
+ const unique=[],seen=new Set();
+ for(const match of candidates){if(seen.has(match.player.key))continue;seen.add(match.player.key);unique.push(match);if(unique.length>=5)break}
+ return unique;
+}
+function bkSpellingChoices(target,candidates,onChoose){
+ if(!target)return;
+ target.textContent='Did you mean one of these MLB players? ';
+ for(const {player} of candidates.slice(0,3)){
+  const btn=document.createElement('button');btn.type='button';btn.className='secondary';btn.textContent=player.name;
+  btn.style.margin='5px';btn.onclick=()=>onChoose(player);target.appendChild(btn);
+ }
+}
+
 const app=document.getElementById('app');let mode='solo',duration=20,count=2,profiles=['Player 1','Player 2'],game=null,ticker=null,selected=null,searchMatches=[];
 const safe=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
@@ -411,9 +458,21 @@ function bkDailySubmit(){
  const player=matches.find(p=>initial(p.first)===r.letter&&!used.has(p.id));
  if(!entered){feedback.textContent='Enter a player name.';return}
  if(player){r.answers.push({id:player.id,name:player.name});if(!r.practice)bkDailySave(r.day,{deadline:r.deadline,answers:r.answers,completed:false});feedback.textContent='✓ '+player.name+' accepted!';input.value='';bkDailyDrawHistory()}
+ else if(!matches.length){
+  const suggestions=bkSpellingMatches(entered,r.letter,used);
+  if(suggestions.length===1){
+   const corrected=suggestions[0].player;
+   r.answers.push({id:corrected.id,name:corrected.name});
+   if(!r.practice)bkDailySave(r.day,{deadline:r.deadline,answers:r.answers,completed:false});
+   feedback.textContent='✓ '+corrected.name+' accepted (spelling corrected).';
+   input.value='';bkDailyDrawHistory();
+  }else if(suggestions.length>1){
+   bkSpellingChoices(feedback,suggestions,player=>{input.value=player.name;bkDailySubmit()});
+  }else feedback.textContent='That name is not in the MLB player database.';
+ }
  else if(matches.some(p=>initial(p.first)===r.letter)){feedback.textContent='Already used that player.'}
  else if(matches.length){feedback.textContent='That player’s first name must start with '+r.letter+'.'}
- else feedback.textContent='That name is not in the MLB player database.';
+ else feedback.textContent='That player does not meet today’s letter rule.';
  input.focus();
 }
 function bkDailyFinish(){
@@ -489,7 +548,16 @@ function bkShowFeedback(ok){
  document.querySelectorAll('.bk-feedback.bk-answer-overlay').forEach(n=>n.remove());
  const node=document.createElement('div');node.className='bk-feedback bk-answer-overlay '+(ok?'ok':'no');node.setAttribute('role','status');node.innerHTML='<span class="bk-feedback-icon">'+(ok?'✓':'✕')+'</span><span class="bk-feedback-label">'+(ok?'CORRECT':'INCORRECT')+'</span>';document.body.appendChild(node);bkFeedbackSound(ok);setTimeout(()=>node.remove(),900);
 }
-function submit(){if(!game||game.done||current().name==='Computer')return;let q=document.getElementById('answer').value.trim();if(!q){message('Enter a player name.',true);return}let candidates=byName.get(norm(q))||[];let p=selected&&selected.key===norm(q)?selected:candidates.find(x=>!game.used.has(x.id))||candidates[0];if(!p){eliminate('Invalid player: '+q);return}if(game.used.has(p.id)){eliminate('Repeated player: '+p.name);return}if(game.last&&initial(p.first)!==initial(game.last.last)){eliminate('Wrong starting letter: '+p.name);return}accept(p)}
+function submit(){if(!game||game.done||current().name==='Computer')return;let q=document.getElementById('answer').value.trim();if(!q){message('Enter a player name.',true);return}let candidates=byName.get(norm(q))||[];let p=selected&&selected.key===norm(q)?selected:candidates.find(x=>!game.used.has(x.id))||candidates[0];if(!p){
+ const required=game.last?initial(game.last.last):null;
+ const suggestions=bkSpellingMatches(q,required,game.used);
+ if(suggestions.length===1)p=suggestions[0].player;
+ else if(suggestions.length>1){
+  bkSpellingChoices(document.getElementById('message'),suggestions,player=>{const input=document.getElementById('answer');if(!input)return;input.value=player.name;selected=player;submit()});
+  return;
+ }else{eliminate('Invalid player: '+q);return}
+}
+if(game.used.has(p.id)){eliminate('Repeated player: '+p.name);return}if(game.last&&initial(p.first)!==initial(game.last.last)){eliminate('Wrong starting letter: '+p.name);return}accept(p)}
 function accept(p){bkShowFeedback(true);stopTimer();game.used.add(p.id);game.last=p;const human=current().name!=='Computer';current().answers++;game.history.push({player:p,by:current().name});advance();if(human)Promise.resolve().then(()=>bkCreditAnswer(p.id)).catch(e=>console.warn('Career progress sync failed:',e))}
 function advance(){let g=game;if(g.mode==='solo'){renderGame();beginTurn();return}let alive=g.people.filter(p=>p.alive);if(alive.length<=1){finish('Winner: '+(alive[0]?.name||'Nobody'));return}let next=g.turn;do{next=(next+1)%g.people.length}while(!g.people[next].alive);g.turn=next;renderGame();beginTurn()}
 function eliminate(reason){if(!game||game.done)return;if(reason!=='Time expired'&&reason!=='Computer could not answer')bkShowFeedback(false);stopTimer();let g=game;if(g.mode==='solo'){finish(reason);return}current().alive=false;if(g.people.filter(p=>p.alive).length<=1){finish(reason);return}advance()}
