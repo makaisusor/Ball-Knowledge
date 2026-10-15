@@ -575,7 +575,7 @@ function bkDailyServerFailure(day,reason){
 function bkDailyRenderGame(){
  const round=bkDailyRound;if(!round)return;
  if(Date.now()>=round.deadline){bkDailyFinish();return}
- app.innerHTML='<section class="panel"><div class="bk-daily-toolbar"><span class="tag">⚾ '+(round.practice?'ARCHIVE PRACTICE':'TODAY\'S CHALLENGE')+'</span><button class="secondary" id="bk-daily-exit">← Game modes</button></div><h2 style="margin-top:16px">Letter of the Day · '+safe(bkDailyTitle(round.day))+'</h2><div class="bk-daily-letter">'+round.letter+'</div><p>Name as many MLB players whose <b>first name</b> starts with '+round.letter+' as you can. No repeats.</p><div class="stats"><div class="stat"><b id="bk-daily-score">'+round.answers.length+'</b><span>Correct names</span></div><div class="stat"><b id="bk-daily-clock" class="timer">2:00</b><span>Time remaining</span></div></div><div class="bk-daily-answer-row"><input id="bk-daily-name" type="text" aria-label="MLB player full name" placeholder="Type an MLB player’s full name…" autocomplete="off" autocapitalize="words" spellcheck="false"><button class="primary" id="bk-daily-submit">Submit</button></div><p id="bk-daily-feedback" role="status" class="bk-feedback"></p><h3>Players named</h3><div class="bk-daily-history" id="bk-daily-history"></div><p style="font-size:12px;color:var(--muted)">'+(round.practice?'Practice run · does not replace your daily score':'Your daily attempt continues counting down if you leave this screen. Progress is saved on this browser.')+'</p></section>';
+ app.innerHTML='<section class="panel"><div class="bk-daily-toolbar"><span class="tag">⚾ '+(round.practice?'ARCHIVE PRACTICE':'TODAY\'S CHALLENGE')+'</span><button class="secondary" id="bk-daily-exit">← Game modes</button></div><h2 style="margin-top:16px">Letter of the Day · '+safe(bkDailyTitle(round.day))+'</h2><div class="bk-daily-letter">'+round.letter+'</div><p>Name as many MLB players whose <b>first name</b> starts with '+round.letter+' as you can. No repeats.</p><div class="stats"><div class="stat"><b id="bk-daily-score">'+round.answers.length+'</b><span>Correct names</span></div><div class="stat"><b id="bk-daily-clock" class="timer">2:00</b><span>Time remaining</span></div></div><div class="bk-daily-answer-row"><input id="bk-daily-name" type="text" aria-label="MLB player full name" placeholder="Type an MLB player’s full name…" autocomplete="off" autocapitalize="words" spellcheck="false"><button class="primary" id="bk-daily-submit">Submit</button></div><p id="bk-daily-feedback" role="status" class="bk-feedback"></p><h3>Players named</h3><div class="bk-daily-history" id="bk-daily-history"></div><p style="font-size:12px;color:var(--muted)">'+(round.practice?'Practice run · does not replace your daily score':round.server?'Your two-minute attempt and every accepted answer are saved to your signed-in account.':'Your daily attempt continues counting down if you leave. Guest progress is saved on this browser.')+'</p></section>';
  app.querySelector('#bk-daily-exit').onclick=()=>{bkDailyStop();menu()};
  app.querySelector('#bk-daily-submit').onclick=bkDailySubmit;
  app.querySelector('#bk-daily-name').onkeydown=e=>{if(e.key==='Enter'){e.preventDefault();bkDailySubmit()}};
@@ -583,39 +583,86 @@ function bkDailyRenderGame(){
  app.querySelector('#bk-daily-name').focus();
 }
 function bkDailyDrawHistory(){const r=bkDailyRound;if(!r)return;const el=app.querySelector('#bk-daily-history');if(el)el.innerHTML=r.answers.map(a=>'<span>'+safe(a.name)+'</span>').join('')||'<span style="color:var(--muted)">No players entered yet</span>';const score=app.querySelector('#bk-daily-score');if(score)score.textContent=r.answers.length}
-function bkDailyTick(){if(!bkDailyRound)return;const remaining=bkDailyRound.deadline-Date.now();if(remaining<=0){bkDailyFinish();return}const seconds=Math.ceil(remaining/1000),timer=app.querySelector('#bk-daily-clock');if(timer)timer.textContent=Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0')}
+
+function bkDailyTick(){
+ const r=bkDailyRound;if(!r)return;
+ const remaining=r.deadline-Date.now(),seconds=Math.max(0,Math.ceil(remaining/1000)),timer=app.querySelector('#bk-daily-clock');
+ if(timer)timer.textContent=Math.floor(seconds/60)+':'+String(seconds%60).padStart(2,'0');
+ if(remaining<=0&&!r.submitting)bkDailyFinish();
+}
+async function bkDailyAccept(player,corrected){
+ const r=bkDailyRound,input=app.querySelector('#bk-daily-name'),feedback=app.querySelector('#bk-daily-feedback'),button=app.querySelector('#bk-daily-submit');
+ if(!r||r.submitting||!input||!feedback||r.answers.some(a=>a.id===player.id))return;
+ if(Date.now()>=r.deadline){bkDailyFinish();return}
+ r.submitting=true;button.disabled=true;input.disabled=true;
+ const original=feedback.textContent;
+ feedback.textContent=r.server?'Saving answer to your account…':'Checking answer…';
+ try{
+  if(r.server){
+   const client=window.bkSharedClient();
+   const {data,error}=await client.rpc('bk_daily_answer',{
+    p_day:r.day,p_player_id:player.id,p_player_name:player.name,p_first_name:player.first
+   });
+   if(error||!data)throw error||new Error('Could not save answer');
+   if(bkDailyRound!==r)return;
+   const remote=bkDailyStoreRemote(Array.isArray(data)?data[0]:data);
+   r.answers=remote.answers.slice();
+  }else{
+   r.answers.push({id:player.id,name:player.name});
+   if(!r.practice)bkDailySave(r.day,{deadline:r.deadline,answers:r.answers,completed:false});
+  }
+  if(bkDailyRound!==r)return;
+  feedback.textContent='✓ '+player.name+' accepted'+(corrected?' (spelling corrected)':'')+'!';
+  input.value='';
+  bkDailyDrawHistory();
+ }catch(error){
+  if(bkDailyRound!==r)return;
+  feedback.textContent='Could not save: '+bkDailySyncError(error)+' Try again.';
+  console.warn('Ball Knowledge daily answer sync:',error);
+ }finally{
+  if(bkDailyRound===r){
+   r.submitting=false;button.disabled=false;input.disabled=false;
+   if(Date.now()>=r.deadline)bkDailyFinish();else input.focus();
+  }
+ }
+}
 function bkDailySubmit(){
- const r=bkDailyRound,input=app.querySelector('#bk-daily-name'),feedback=app.querySelector('#bk-daily-feedback');if(!r||!input||!feedback)return;
+ const r=bkDailyRound,input=app.querySelector('#bk-daily-name'),feedback=app.querySelector('#bk-daily-feedback');
+ if(!r||!input||!feedback||r.submitting)return;
  if(Date.now()>=r.deadline){bkDailyFinish();return}
  const entered=input.value.trim(),matches=byName.get(norm(entered))||[];
  const used=new Set(r.answers.map(a=>a.id));
  const player=matches.find(p=>initial(p.first)===r.letter&&!used.has(p.id));
  if(!entered){feedback.textContent='Enter a player name.';return}
- if(player){r.answers.push({id:player.id,name:player.name});if(!r.practice)bkDailySave(r.day,{deadline:r.deadline,answers:r.answers,completed:false});feedback.textContent='✓ '+player.name+' accepted!';input.value='';bkDailyDrawHistory()}
- else if(!matches.length){
+ if(player){bkDailyAccept(player,false);return}
+ if(!matches.length){
   const suggestions=bkSpellingMatches(entered,r.letter,used);
-  if(suggestions.length===1){
-   const corrected=suggestions[0].player;
-   r.answers.push({id:corrected.id,name:corrected.name});
-   if(!r.practice)bkDailySave(r.day,{deadline:r.deadline,answers:r.answers,completed:false});
-   feedback.textContent='✓ '+corrected.name+' accepted (spelling corrected).';
-   input.value='';bkDailyDrawHistory();
-  }else if(suggestions.length>1){
+  if(suggestions.length===1){bkDailyAccept(suggestions[0].player,true);return}
+  if(suggestions.length>1){
    bkSpellingChoices(feedback,suggestions,player=>{input.value=player.name;bkDailySubmit()});
   }else feedback.textContent='That name is not in the MLB player database.';
- }
- else if(matches.some(p=>initial(p.first)===r.letter)){feedback.textContent='Already used that player.'}
- else if(matches.length){feedback.textContent='That player’s first name must start with '+r.letter+'.'}
- else feedback.textContent='That player does not meet today’s letter rule.';
+ }else if(matches.some(p=>initial(p.first)===r.letter)){
+  feedback.textContent='Already used that player.';
+ }else feedback.textContent='That player’s first name must start with '+r.letter+'.';
  input.focus();
 }
 function bkDailyFinish(){
- const r=bkDailyRound;if(!r)return;
+ const r=bkDailyRound;if(!r||r.submitting)return;
  if(bkDailyTicker){clearInterval(bkDailyTicker);bkDailyTicker=null}
- const result={deadline:r.deadline,answers:r.answers,completed:true};
+ const result={deadline:r.deadline,answers:r.answers,completed:true,server:!!r.server};
  if(!r.practice)bkDailySave(r.day,result);
  else{try{const k='bk_letter_practice_best_v2_'+bkDailyScope()+'_'+r.day;localStorage.setItem(k,String(Math.max(Number(localStorage.getItem(k)||0),r.answers.length)))}catch{}}
  bkDailyRound=null;bkDailyResults(r.day,result,r.practice);
+ if(r.server){
+  const client=window.bkSharedClient();
+  if(!client)return;
+  client.rpc('bk_daily_complete',{p_day:r.day}).then(({data,error})=>{
+   const status=app.querySelector('#bk-daily-sync-note');
+   if(error){console.warn('Could not finalize daily score:',error);if(status)status.textContent='Your accepted answers were saved, but final account confirmation is pending. Try refreshing.';return}
+   bkDailyStoreRemote(Array.isArray(data)?data[0]:data);
+   if(status)status.textContent='✓ Your daily challenge and results are saved to your account.';
+  }).catch(error=>console.warn('Daily completion:',error));
+ }
 }
 
 /* Hand-selected recognizable names; not a statistical popularity ranking. */
@@ -685,7 +732,7 @@ function bkDailyShowMissed(day,answers){
 }
 function bkDailyResults(day,result,practice){
  const answers=Array.isArray(result.answers)?result.answers:[],score=answers.length;
- const syncText=practice?'Archive replays are practice and do not change today’s result.':window.bkActiveUserId?'Signed-in daily results are linked to your account when account sync is available.':'Guest results are saved only on this browser. Sign in to save future daily scores across devices.';
+ const syncText=practice?'Archive replays are practice and do not change today’s result.':window.bkActiveUserId?(result.server?'✓ Your accepted answers have been saved to your account.':'This result is on this device. Official account sync will apply to new scored attempts once the Supabase migration is installed.'):'Guest results are saved only on this browser. Sign in to save future daily scores across devices.';
  app.innerHTML='<section class="panel" style="text-align:center"><div class="bk-daily-eyebrow">⚾ '+(practice?'Archive practice complete':'Daily Challenge complete')+'</div><h2 style="margin-top:10px">Letter '+bkDailyLetter(day)+' · '+safe(bkDailyTitle(day))+'</h2><div class="bk-daily-letter">'+score+'</div><p>MLB players named in 2 minutes</p><div class="actions" style="justify-content:center;flex-wrap:wrap"><button type="button" class="primary" id="bk-daily-results-missed">🔎 See Who You Missed</button><button type="button" class="secondary" id="bk-daily-results-menu">Game modes</button><button type="button" class="secondary" id="bk-daily-results-archive">Past challenges</button><button type="button" class="secondary" id="bk-daily-results-copy">Share result</button>'+(practice?'<button type="button" class="secondary" id="bk-daily-results-retry">Play again</button>':(!window.bkActiveUserId&&day===bkDailyToday()?'<button type="button" class="secondary" id="bk-daily-results-retry">Practice again</button>':''))+'</div><h3 style="font-size:21px;margin:22px 0 6px">Players you named</h3><p style="font-size:13px">Tap a player to view their MLB career stats.</p><div class="bk-daily-history" id="bk-daily-result-players" style="justify-content:center">'+answers.map(a=>'<button type="button" class="bk-daily-player-button" data-bk-player="'+safe(a.id)+'">'+safe(a.name)+' ⓘ</button>').join('')+'</div><p id="bk-daily-sync-note" style="font-size:12px;color:var(--muted)">'+safe(syncText)+'</p></section>';
  app.querySelector('#bk-daily-results-menu').onclick=menu;
  app.querySelector('#bk-daily-results-archive').onclick=bkDailyArchive;
