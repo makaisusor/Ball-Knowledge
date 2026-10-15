@@ -306,6 +306,7 @@ function initial(s){return (s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').ma
 
 /* Conservative MLB typo matching: require both a first and last name and preserve the first initial. */
 function bkBoundedDistance(a,b,limit){
+ if(limit>=1&&a.length===b.length){for(let k=0;k<a.length-1;k++){if(a[k]===b[k+1]&&a[k+1]===b[k]&&a.slice(0,k)===b.slice(0,k)&&a.slice(k+2)===b.slice(k+2))return 1}}
  if(Math.abs(a.length-b.length)>limit)return limit+1;
  let prev=Array.from({length:b.length+1},(_,i)=>i);
  for(let i=1;i<=a.length;i++){
