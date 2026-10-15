@@ -641,11 +641,12 @@ function bkDailySubmit(){
   if(suggestions.length===1){bkDailyAccept(suggestions[0].player,true);return}
   if(suggestions.length>1){
    bkSpellingChoices(feedback,suggestions,player=>{input.value=player.name;bkDailySubmit()});
+   input.focus();return;
   }else feedback.textContent='That name is not in the MLB player database.';
  }else if(matches.some(p=>initial(p.first)===r.letter)){
   feedback.textContent='Already used that player.';
  }else feedback.textContent='That player’s first name must start with '+r.letter+'.';
- if(!document.querySelector('#bk-daily-feedback [data-bk-spelling-choice]'))bkShowFeedback(false);
+ bkShowFeedback(false);
  input.focus();
 }
 function bkDailyFinish(){
