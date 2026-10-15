@@ -358,8 +358,8 @@ function bkDailyRead(day){
 }
 function bkDailySave(day,row){try{localStorage.setItem(bkDailyKey(day),JSON.stringify(row))}catch{}}
 function bkDailyPromptKey(){return 'bk_letter_prompt_v1_'+bkDailyToday()}
-function bkDailyDismiss(){const overlay=document.getElementById('bk-daily-overlay');if(overlay)overlay.remove();try{localStorage.setItem(bkDailyPromptKey(),'1')}catch{}}
-function bkDailyStop(){if(bkDailyTicker){clearInterval(bkDailyTicker);bkDailyTicker=null}bkDailyRound=null;bkDailyDismiss()}
+function bkDailyDismiss(markSeen=true){const overlay=document.getElementById('bk-daily-overlay');if(overlay)overlay.remove();if(markSeen)try{localStorage.setItem(bkDailyPromptKey(),'1')}catch{}}
+function bkDailyStop(){if(bkDailyTicker){clearInterval(bkDailyTicker);bkDailyTicker=null}bkDailyRound=null;bkDailyDismiss(false)}
 function bkDailyFeatureMarkup(){
  const today=bkDailyToday(),row=bkDailyRead(today);
  const status=row?.completed?'Completed · '+row.answers.length+' names':row?'Continue your attempt':'Two minutes · One daily attempt';
@@ -369,7 +369,7 @@ function bkDailyMaybePrompt(){
  const day=bkDailyToday(),row=bkDailyRead(day);
  try{if(localStorage.getItem(bkDailyPromptKey())==='1')return}catch{}
  if(row?.completed)return;
- bkDailyDismiss();
+ bkDailyDismiss(false);
  const overlay=document.createElement('div');overlay.id='bk-daily-overlay';overlay.className='bk-daily-overlay';
  overlay.setAttribute('role','presentation');
  overlay.innerHTML='<section class="bk-daily-dialog" role="dialog" aria-modal="true" aria-labelledby="bk-daily-dialog-title"><button type="button" class="bk-daily-close" id="bk-daily-close" aria-label="Dismiss daily challenge">×</button><div class="bk-daily-eyebrow">Your MLB daily challenge</div><h2 id="bk-daily-dialog-title">Letter of the Day</h2><div class="bk-daily-letter">'+bkDailyLetter(day)+'</div><p>Name as many MLB players whose <b>first name</b> starts with '+bkDailyLetter(day)+' as possible in <b>2 minutes</b>.</p><p style="font-size:13px">One scored attempt today. Past letters are replayable any time.</p><div class="actions" style="justify-content:center"><button class="primary" id="bk-daily-prompt-play">'+(row?'Resume Challenge':'Play Today')+'</button><button class="secondary" id="bk-daily-prompt-skip">Not now</button></div></section>';
