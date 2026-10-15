@@ -140,6 +140,26 @@ body.bk-before-entry.bk-login-open #bk-login-screen #bk-auth{display:block!impor
 .bk-daily-archive-list button:hover{border-color:var(--accent)}
 .bk-daily-archive-list small{display:block;color:var(--muted);margin-top:5px}
 @media(max-width:480px){.bk-daily-answer-row{flex-direction:column}.bk-daily-answer-row #bk-daily-name{width:100%;flex:auto;min-width:0}.bk-daily-answer-row #bk-daily-submit{width:100%;flex:auto}.bk-daily-archive-list{grid-template-columns:1fr}.bk-daily-dialog{padding:26px 17px}}
+
+/* Daily results: scrollable player discovery and clickable career stats. */
+.bk-daily-player-button{display:inline-flex;align-items:center;gap:4px;padding:8px 11px;border-radius:999px;background:#202f29;border:1px solid #3a6652;color:#76e6b4;cursor:pointer;font-size:13px}
+.bk-daily-player-button:hover,.bk-missed-player:hover{border-color:#65e5ae;background:#254636}
+.bk-daily-missed-overlay{position:fixed;inset:0;z-index:9500;background:#030a08e8;display:flex;align-items:center;justify-content:center;padding:14px}
+.bk-daily-missed-dialog{width:min(100%,650px);max-height:min(90vh,850px);display:flex;flex-direction:column;gap:11px;background:#141e1b;border:1px solid #498065;border-radius:18px;padding:20px;box-shadow:0 20px 65px #000b}
+.bk-daily-missed-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.bk-daily-missed-head h2{margin:5px 0;font-size:28px}
+.bk-daily-missed-head button{flex:none;padding:5px 11px;border:0;background:#25362f;color:#f6faf8;border-radius:9px;font-size:23px;cursor:pointer}
+.bk-daily-missed-controls{display:flex;gap:8px;flex-wrap:wrap}
+.bk-daily-missed-controls button{background:#25352e;color:#c8ded3;padding:9px 12px;border:1px solid #466554;border-radius:9px;cursor:pointer}
+.bk-daily-missed-controls button[aria-pressed=true]{background:#295640;color:#77f0b9;border-color:#77f0b9}
+#bk-daily-missed-search{padding:12px 13px;width:100%;min-width:0;box-sizing:border-box}
+.bk-daily-missed-list{overflow-y:auto;flex:1;min-height:120px;max-height:55vh;overscroll-behavior:contain;display:flex;flex-direction:column;gap:6px;padding-right:3px}
+.bk-missed-player{width:100%;display:flex;justify-content:space-between;align-items:center;text-align:left;padding:11px 12px;border:1px solid #33473d;border-radius:10px;background:#1d2923;color:#edf9f2;cursor:pointer}
+.bk-missed-player small{color:#81c5a0;font-size:12px}
+.bk-missed-count{font-size:13px;color:#9cb6a9;margin:0}
+#bk-daily-missed-more{flex:none;width:100%}
+@media(max-width:500px){.bk-daily-missed-dialog{padding:14px;max-height:94vh}.bk-daily-missed-head h2{font-size:23px}}
+
 </style></head><body class="bk-before-entry"><main><header><h1><button id="bk-logo-home" type="button" aria-label="Ball Knowledge — return home" title="Return home" style="all:unset;cursor:pointer;display:inline-block">⚾ BALL <span class="brand">KNOWLEDGE</span></button></h1><span class="tag">MLB · NBA · NFL</span><button id="bk-profile-trigger" type="button" aria-label="Open profile menu" aria-expanded="false">👤 <span id="bk-profile-label">Profile</span> ▾</button></header><style>#bk-auth{max-width:750px;margin:0 auto;padding:0 17px 12px}#bk-auth .authbar{display:flex;justify-content:space-between;align-items:center;gap:10px;background:#121c2d;border:1px solid #28374d;border-radius:12px;padding:12px}#bk-auth button{border:1px solid #41516a;background:#243247;color:#fff;border-radius:9px;padding:10px 12px;cursor:pointer}#bk-auth .authform{margin-top:10px;background:#121c2d;border:1px solid #28374d;border-radius:12px;padding:15px}#bk-auth .authform input{margin:6px 0 12px}#bk-auth .authform button{margin:3px}#bk-auth .authstatus{color:#99abc5;font-size:13px;padding:8px 0}#bk-auth .authstatus.error{color:#ff7187}</style><style>
 #bk-gate{max-width:540px;margin:42px auto 0;padding:28px;background:#121c2d;border:1px solid #28374d;border-radius:20px;text-align:center}
 #bk-gate h2{font-size:28px;margin:0 0 12px}#bk-gate p{color:#99abc5}
@@ -519,14 +539,84 @@ function bkDailyFinish(){
  else{try{const k='bk_letter_practice_best_v2_'+bkDailyScope()+'_'+r.day;localStorage.setItem(k,String(Math.max(Number(localStorage.getItem(k)||0),r.answers.length)))}catch{}}
  bkDailyRound=null;bkDailyResults(r.day,result,r.practice);
 }
+
+/* Hand-selected recognizable names; not a statistical popularity ranking. */
+const bkDailyNotables={
+ A:['Aaron Judge','Albert Pujols','Alex Rodriguez','Adrian Beltre','Andrew McCutchen','Al Kaline','Anthony Rizzo'],
+ B:['Babe Ruth','Barry Bonds','Bryce Harper','Bob Gibson','Buster Posey','Bo Bichette','Bobby Witt Jr.'],
+ C:['Cal Ripken','Clayton Kershaw','Carl Yastrzemski','CC Sabathia','Corey Seager','Carlos Correa','Chris Sale'],
+ D:['David Ortiz','Derek Jeter','Darryl Strawberry','Don Mattingly','David Wright','Dwight Gooden'],
+ E:['Eddie Murray','Ernie Banks','Eddie Mathews','Edgar Martinez','Evan Longoria','Eric Davis'],
+ F:['Frank Thomas','Freddie Freeman','Fernando Tatis Jr.','Felix Hernandez','Francisco Lindor'],
+ G:['Greg Maddux','George Brett','Gary Sheffield','Giancarlo Stanton','Gerrit Cole','Goose Gossage'],
+ H:['Hank Aaron','Honus Wagner','Hideki Matsui','Hunter Pence','Harmon Killebrew'],
+ J:['Jackie Robinson','Justin Verlander','Juan Soto','Jose Altuve','Joe DiMaggio','Jacob deGrom','Julio Rodriguez'],
+ K:['Ken Griffey Jr.','Kyle Schwarber','Kris Bryant','Keith Hernandez','Kevin Gausman'],
+ L:['Lou Gehrig','Luis Arraez','Lance Berkman','Larry Walker','Luis Robert'],
+ M:['Mike Trout','Mookie Betts','Manny Machado','Miguel Cabrera','Max Scherzer','Mariano Rivera','Mark McGwire','Matt Olson'],
+ N:['Nolan Ryan','Nelson Cruz','Nick Castellanos','Nico Hoerner','Nomar Garciaparra'],
+ O:['Ozzie Smith','Orlando Cepeda','Oscar Charleston','Omar Vizquel','Oneil Cruz'],
+ P:['Pete Rose','Pedro Martinez','Paul Goldschmidt','Prince Fielder','Paul Skenes'],
+ R:['Randy Johnson','Rickey Henderson','Ronald Acuna Jr.','Roberto Clemente','Roger Clemens','Rafael Devers'],
+ S:['Shohei Ohtani','Sammy Sosa','Sandy Koufax','Stan Musial','Stephen Strasburg','Steve Carlton','Satchel Paige','Salvador Perez'],
+ T:['Ted Williams','Tony Gwynn','Trea Turner','Tim Lincecum','Trevor Hoffman','Tom Seaver'],
+ V:['Vladimir Guerrero','Vladimir Guerrero Jr.','Victor Martinez','Vinnie Pasquantino','Vida Blue'],
+ W:['Willie Mays','Walter Johnson','Wade Boggs','Willie McCovey','Wander Franco'],
+};
+function bkDailyEligibleMissed(day,answers){
+ const letter=bkDailyLetter(day),used=new Set((answers||[]).map(a=>a.id));
+ const seen=new Set();
+ return players.filter(p=>{if(initial(p.first)!==letter||used.has(p.id)||seen.has(p.key))return false;seen.add(p.key);return true})
+  .sort((a,b)=>a.name.localeCompare(b.name));
+}
+function bkDailyShowMissed(day,answers){
+ const existing=document.getElementById('bk-daily-missed-overlay');if(existing)existing.remove();
+ const missed=bkDailyEligibleMissed(day,answers),missedIds=new Set(missed.map(p=>p.id));
+ const notables=[];const seen=new Set();
+ for(const name of bkDailyNotables[bkDailyLetter(day)]||[]){
+  const found=(byName.get(norm(name))||[]).find(p=>missedIds.has(p.id));
+  if(found&&!seen.has(found.key)){notables.push(found);seen.add(found.key)}
+ }
+ const overlay=document.createElement('div');
+ overlay.id='bk-daily-missed-overlay';overlay.className='bk-daily-missed-overlay';
+ overlay.innerHTML='<section role="dialog" aria-modal="true" aria-labelledby="bk-missed-title" class="bk-daily-missed-dialog"><div class="bk-daily-missed-head"><div><div class="bk-daily-eyebrow">⚾ Review your challenge</div><h2 id="bk-missed-title">See who you missed · '+bkDailyLetter(day)+'</h2><p class="bk-missed-count">'+missed.length.toLocaleString()+' eligible players remaining</p></div><button type="button" id="bk-missed-close" aria-label="Close player list">×</button></div><div class="bk-daily-missed-controls"><button type="button" id="bk-missed-notable" aria-pressed="true">Recognizable names</button><button type="button" id="bk-missed-all" aria-pressed="false">All remaining players</button></div><input id="bk-daily-missed-search" type="search" placeholder="Search missed MLB players…" aria-label="Search missed players"><div class="bk-daily-missed-list" id="bk-missed-list"></div><button type="button" class="secondary" id="bk-daily-missed-more" hidden>Show more players</button><p class="bk-missed-count">Tap any player for career statistics and a Baseball-Reference link. Recognizable names are a hand-picked selection, not a popularity ranking.</p></section>';
+ document.body.appendChild(overlay);
+ const list=overlay.querySelector('#bk-missed-list'),search=overlay.querySelector('#bk-daily-missed-search');
+ const more=overlay.querySelector('#bk-daily-missed-more'),notable=overlay.querySelector('#bk-missed-notable'),all=overlay.querySelector('#bk-missed-all');
+ let view='notable',limit=60;
+ function draw(){
+  const q=norm(search.value),base=q?missed.filter(p=>p.key.includes(q)):(view==='notable'&&notables.length?notables:missed);
+  list.innerHTML=base.slice(0,limit).map(p=>'<button type="button" class="bk-missed-player" data-bk-player="'+safe(p.id)+'"><span>'+safe(p.name)+'</span><small>Stats ↗</small></button>').join('')||'<p>No players match this search.</p>';
+  more.hidden=base.length<=limit;
+  notable.setAttribute('aria-pressed',String(view==='notable'));
+  all.setAttribute('aria-pressed',String(view==='all'));
+  overlay.querySelector('.bk-missed-count').textContent=base.length.toLocaleString()+' '+(q?'matches':view==='notable'&&notables.length?'recognizable players':'eligible players');
+ }
+ function close(){overlay.remove()}
+ overlay.querySelector('#bk-missed-close').onclick=close;
+ overlay.addEventListener('click',e=>{if(e.target===overlay)close()});
+ list.addEventListener('click',e=>{const b=e.target.closest('[data-bk-player]');if(b)showPlayerInfo(b.dataset.bkPlayer)});
+ notable.onclick=()=>{view='notable';search.value='';limit=60;draw()};
+ all.onclick=()=>{view='all';search.value='';limit=60;draw()};
+ more.onclick=()=>{limit+=60;draw()};
+ search.oninput=()=>{limit=60;draw()};
+ const onEscape=e=>{if(e.key==='Escape'&&document.getElementById('bk-player-modal').hidden){close();document.removeEventListener('keydown',onEscape)}};
+ document.addEventListener('keydown',onEscape);
+ draw();
+ overlay.querySelector('#bk-missed-close').focus();
+}
 function bkDailyResults(day,result,practice){
- const score=Array.isArray(result.answers)?result.answers.length:0;
- app.innerHTML='<section class="panel" style="text-align:center"><div class="bk-daily-eyebrow">⚾ '+(practice?'Archive practice complete':'Daily Challenge complete')+'</div><h2 style="margin-top:10px">Letter '+bkDailyLetter(day)+' · '+safe(bkDailyTitle(day))+'</h2><div class="bk-daily-letter">'+score+'</div><p>MLB players named in 2 minutes</p><div class="actions" style="justify-content:center"><button type="button" class="primary" id="bk-daily-results-menu">Game modes</button><button type="button" class="secondary" id="bk-daily-results-archive">Past challenges</button><button type="button" class="secondary" id="bk-daily-results-copy">Share result</button>'+(practice?'<button type="button" class="secondary" id="bk-daily-results-retry">Play again</button>':(!window.bkActiveUserId&&day===bkDailyToday()?'<button type="button" class="secondary" id="bk-daily-results-retry">Practice again</button>':''))+'</div><div class="bk-daily-history" style="justify-content:center">'+(result.answers||[]).map(a=>'<span>'+safe(a.name)+'</span>').join('')+'</div><p style="font-size:12px;color:var(--muted)">'+(practice?'Archive replays are practice and do not change today’s result.':'This daily score is saved on this browser, not yet synced to your account.')+'</p></section>';
+ const answers=Array.isArray(result.answers)?result.answers:[],score=answers.length;
+ const syncText=practice?'Archive replays are practice and do not change today’s result.':window.bkActiveUserId?'Signed-in daily results are linked to your account when account sync is available.':'Guest results are saved only on this browser. Sign in to save future daily scores across devices.';
+ app.innerHTML='<section class="panel" style="text-align:center"><div class="bk-daily-eyebrow">⚾ '+(practice?'Archive practice complete':'Daily Challenge complete')+'</div><h2 style="margin-top:10px">Letter '+bkDailyLetter(day)+' · '+safe(bkDailyTitle(day))+'</h2><div class="bk-daily-letter">'+score+'</div><p>MLB players named in 2 minutes</p><div class="actions" style="justify-content:center;flex-wrap:wrap"><button type="button" class="primary" id="bk-daily-results-missed">🔎 See Who You Missed</button><button type="button" class="secondary" id="bk-daily-results-menu">Game modes</button><button type="button" class="secondary" id="bk-daily-results-archive">Past challenges</button><button type="button" class="secondary" id="bk-daily-results-copy">Share result</button>'+(practice?'<button type="button" class="secondary" id="bk-daily-results-retry">Play again</button>':(!window.bkActiveUserId&&day===bkDailyToday()?'<button type="button" class="secondary" id="bk-daily-results-retry">Practice again</button>':''))+'</div><h3 style="font-size:21px;margin:22px 0 6px">Players you named</h3><p style="font-size:13px">Tap a player to view their MLB career stats.</p><div class="bk-daily-history" id="bk-daily-result-players" style="justify-content:center">'+answers.map(a=>'<button type="button" class="bk-daily-player-button" data-bk-player="'+safe(a.id)+'">'+safe(a.name)+' ⓘ</button>').join('')+'</div><p id="bk-daily-sync-note" style="font-size:12px;color:var(--muted)">'+safe(syncText)+'</p></section>';
  app.querySelector('#bk-daily-results-menu').onclick=menu;
  app.querySelector('#bk-daily-results-archive').onclick=bkDailyArchive;
+ app.querySelector('#bk-daily-results-missed').onclick=()=>bkDailyShowMissed(day,answers);
+ app.querySelector('#bk-daily-result-players').addEventListener('click',e=>{const button=e.target.closest('[data-bk-player]');if(button)showPlayerInfo(button.dataset.bkPlayer)});
  app.querySelector('#bk-daily-results-copy').onclick=()=>{const share='⚾ Ball Knowledge · '+(practice?'Archive practice':'Daily Letter')+' '+bkDailyTitle(day)+'\nLetter: '+bkDailyLetter(day)+'\n'+score+' MLB players in 2 minutes!\nhttps://playballknowledge.github.io/';if(navigator.clipboard?.writeText)navigator.clipboard.writeText(share).then(()=>alert('Result copied!')).catch(()=>prompt('Copy your result:',share));else prompt('Copy your result:',share)};
  const retry=app.querySelector('#bk-daily-results-retry');if(retry)retry.onclick=()=>bkDailyOpen(day,true);
 }
+
 function bkDailyArchive(){
  bkDailyStop();
  const days=Array.from({length:30},(_,i)=>bkDailyDate(-i-1));
