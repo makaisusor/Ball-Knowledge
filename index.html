@@ -312,7 +312,13 @@ open();if(new URLSearchParams(location.search).has('room'))form('join');
  form.hidden=!!asGuest;
  if(typeof bkDailyStop==='function')bkDailyStop();
  if(typeof leagueMenu==='function')leagueMenu();
- if(typeof bkDailyMaybePrompt==='function')bkDailyMaybePrompt();
+ if(!asGuest&&window.bkActiveUserId&&typeof bkDailyRefreshAccount==='function'){
+  Promise.resolve(bkDailyRefreshAccount()).catch(e=>console.warn(e)).finally(()=>{
+   if(document.body.classList.contains('bk-before-entry')||document.body.classList.contains('bk-profile-open'))return;
+   if(document.getElementById('bk-mlb'))leagueMenu();
+   if(document.getElementById('bk-mlb')&&typeof bkDailyMaybePrompt==='function')bkDailyMaybePrompt();
+  });
+ }else if(typeof bkDailyMaybePrompt==='function')bkDailyMaybePrompt();
 }
 function openLogin(){
  document.body.classList.add('bk-before-entry','bk-login-open');
@@ -459,9 +465,55 @@ function bkDailyRead(day){
  }catch{return null}
 }
 function bkDailySave(day,row){try{localStorage.setItem(bkDailyKey(day),JSON.stringify(row))}catch{}}
+
+/* Account-linked daily attempts use server-timed Supabase RPCs.
+   The SQL migration lives at supabase/daily_challenge_account_sync.sql.
+   Guests retain browser-only practice and daily results. */
+let bkDailyRequestSerial=0;
+function bkDailyRemoteToLocal(row){
+ const ends=Date.parse(row.ends_at);
+ return {deadline:ends,answers:Array.isArray(row.answers)?row.answers:[],
+  completed:!!row.completed_at||Date.now()>=ends,server:true};
+}
+function bkDailyStoreRemote(row){
+ if(!row||!row.challenge_date)return null;
+ const local=bkDailyRemoteToLocal(row);
+ bkDailySave(row.challenge_date,local);
+ return local;
+}
+async function bkDailyRefreshAccount(){
+ if(!window.bkActiveUserId)return null;
+ const auth=await window.bkAuthenticatedUser().catch(()=>null);
+ if(!auth||auth.id!==window.bkActiveUserId)return null;
+ const client=window.bkSharedClient();
+ if(!client)return null;
+ const day=bkDailyToday();
+ const {data,error}=await client.from('bk_daily_attempts').select('*').eq('challenge_date',day).maybeSingle();
+ if(error){console.warn('Ball Knowledge daily account load:',error.message);return null}
+ if(data)return bkDailyStoreRemote(data);
+ try{localStorage.removeItem(bkDailyKey(day))}catch{}
+ return null;
+}
+async function bkDailyFetchAccountArchive(){
+ if(!window.bkActiveUserId)return;
+ const auth=await window.bkAuthenticatedUser().catch(()=>null);
+ if(!auth||auth.id!==window.bkActiveUserId)return;
+ const client=window.bkSharedClient();
+ if(!client)return;
+ const {data,error}=await client.from('bk_daily_attempts').select('*')
+  .gte('challenge_date',bkDailyDate(-30)).lte('challenge_date',bkDailyToday());
+ if(error){console.warn('Daily archive account load:',error.message);return}
+ for(const row of data||[])bkDailyStoreRemote(row);
+}
+function bkDailySyncError(error){
+ const raw=error?.message||'Unable to connect to your account.';
+ if(/bk_daily_begin|bk_daily_answer|bk_daily_attempts|schema cache|does not exist/i.test(raw))return 'Account-based Daily Challenge saving is not set up in Supabase yet. Apply supabase/daily_challenge_account_sync.sql to enable it.';
+ return raw;
+}
+
 function bkDailyPromptKey(){return 'bk_letter_prompt_v2_'+bkDailyScope()+'_'+bkDailyToday()}
 function bkDailyDismiss(markSeen=true){const overlay=document.getElementById('bk-daily-overlay');if(overlay)overlay.remove();if(markSeen)try{localStorage.setItem(bkDailyPromptKey(),'1')}catch{}}
-function bkDailyStop(){if(bkDailyTicker){clearInterval(bkDailyTicker);bkDailyTicker=null}bkDailyRound=null;bkDailyDismiss(false)}
+function bkDailyStop(){bkDailyRequestSerial++;if(bkDailyTicker){clearInterval(bkDailyTicker);bkDailyTicker=null}bkDailyRound=null;bkDailyDismiss(false)}
 function bkDailyFeatureMarkup(){
  const today=bkDailyToday(),row=bkDailyRead(today);
  const status=row?.completed?'Completed · '+row.answers.length+' names':row?'Continue your attempt':'Two minutes · One daily attempt';
@@ -482,10 +534,28 @@ function bkDailyMaybePrompt(){
  overlay.querySelector('#bk-daily-prompt-play').onclick=()=>{bkDailyDismiss();bkDailyOpen(day,false)};
  overlay.addEventListener('click',e=>{if(e.target===overlay){bkDailyDismiss();menu()}});
 }
-function bkDailyOpen(day,practice){
+async function bkDailyOpen(day,practice){
  bkDailyStop();
- const isToday=day===bkDailyToday();
+ const serial=bkDailyRequestSerial,isToday=day===bkDailyToday();
  if(!isToday)practice=true;
+ if(isToday&&!practice&&window.bkActiveUserId){
+  app.innerHTML='<section class="panel"><h2>Loading your Daily Challenge…</h2><p>Checking your account and two-minute timer.</p><button type="button" class="secondary" id="bk-daily-loading-back">← Game modes</button></section>';
+  app.querySelector('#bk-daily-loading-back').onclick=menu;
+  const auth=await window.bkAuthenticatedUser().catch(()=>null);
+  if(serial!==bkDailyRequestSerial)return;
+  const client=window.bkSharedClient();
+  if(!auth||auth.id!==window.bkActiveUserId||!client){bkDailyServerFailure(day,'Sign in again to save your Daily Challenge.');return}
+  try{
+   const {data,error}=await client.rpc('bk_daily_begin',{p_day:day});
+   if(serial!==bkDailyRequestSerial)return;
+   if(error||!data)throw error||new Error('Could not create daily attempt');
+   const local=bkDailyStoreRemote(data);
+   if(local.completed){bkDailyResults(day,local,false);return}
+   bkDailyRound={day,practice:false,letter:bkDailyLetter(day),deadline:local.deadline,answers:local.answers.slice(),server:true};
+   bkDailyRenderGame();
+  }catch(error){if(serial===bkDailyRequestSerial)bkDailyServerFailure(day,bkDailySyncError(error))}
+  return;
+ }
  if(isToday&&!practice){
   const saved=bkDailyRead(day);
   if(saved?.completed){bkDailyResults(day,saved,false);return}
@@ -494,6 +564,14 @@ function bkDailyOpen(day,practice){
  }else bkDailyRound={day,practice:true,letter:bkDailyLetter(day),deadline:Date.now()+120000,answers:[]};
  bkDailyRenderGame();
 }
+function bkDailyServerFailure(day,reason){
+ app.innerHTML='<section class="panel"><h2>Daily Challenge account sync</h2><p id="bk-daily-server-error" role="alert"></p><p>Your scored attempt has not started. You can retry after the connection is fixed, or play an unscored practice round.</p><div class="actions"><button class="primary" id="bk-daily-server-retry">Retry account sync</button><button class="secondary" id="bk-daily-server-practice">Practice instead</button><button class="secondary" id="bk-daily-server-back">Game modes</button></div></section>';
+ app.querySelector('#bk-daily-server-error').textContent=reason;
+ app.querySelector('#bk-daily-server-retry').onclick=()=>bkDailyOpen(day,false);
+ app.querySelector('#bk-daily-server-practice').onclick=()=>bkDailyOpen(day,true);
+ app.querySelector('#bk-daily-server-back').onclick=menu;
+}
+
 function bkDailyRenderGame(){
  const round=bkDailyRound;if(!round)return;
  if(Date.now()>=round.deadline){bkDailyFinish();return}
