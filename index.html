@@ -802,13 +802,13 @@ function bkDailyResults(day,result,practice){
 }
 
 function bkDailyArchive(){
- bkDailyStop();
- bkDailyArchivePaint();
+ bkDailyStop();bkDailyArchivePaint();
  if(window.bkActiveUserId)bkDailyFetchAccountArchive().then(()=>{if(app.querySelector('#bk-daily-archive-back'))bkDailyArchivePaint()}).catch(e=>console.warn('Daily archive:',e));
 }
 function bkDailyArchivePaint(){
- const days=Array.from({length:30},(_,i)=>bkDailyDate(-i-1));
- app.innerHTML='<section class="panel"><button class="secondary" id="bk-daily-archive-back">← Game modes</button><h2 style="margin-top:16px">Past Daily Challenges</h2><p>Replay any of the previous 30 letters for practice. You have 2 minutes per challenge, and your score today stays unchanged.</p><div class="bk-daily-archive-list">'+days.map(day=>{let best='';try{const score=localStorage.getItem('bk_letter_practice_best_v2_'+bkDailyScope()+'_'+day);const official=bkDailyRead(day);best=score?'Practice best: '+score:official?.completed?'Original score: '+official.answers.length:'Not played'}catch{best='Practice'}return '<button type="button" data-bk-day="'+day+'"><b>'+safe(bkDailyTitle(day))+' · Letter '+bkDailyLetter(day)+'</b><small>'+safe(best)+' · Play →</small></button>'}).join('')+'</div></section>';
+ const days=Array.from({length:30},(_,i)=>bkDailyDate(-i-1)),st=bkDailyMilestones();
+ const last28=Array.from({length:28},(_,i)=>bkDailyDate(i-27));
+ app.innerHTML='<section class="panel"><button class="secondary" id="bk-daily-archive-back">← Game modes</button><h2 style="margin-top:16px">Your Daily Challenge stats</h2><p>Your daily progress and past 30 challenges. Account statistics load from your saved Supabase attempts when signed in.</p><div class="bk-v2-statrow"><span>🔥 Streak: '+st.streak+' days</span><span>🏆 Best: '+st.best+'</span><span>📅 Played: '+st.played+'</span><span>📈 Average: '+st.average+'</span></div><h3>Last 28 days</h3><div class="bk-v2-calendar">'+last28.map(day=>{const r=bkDailyRead(day);return '<span title="'+day+(r?.completed?' · '+r.answers.length+' names':'')+'" class="'+(r?.completed?'played':'')+'">'+day.slice(-2)+'</span>'}).join('')+'</div><h3 style="margin-top:22px">Previous challenges</h3><p>Replay earlier letters for practice without changing your official score.</p><div class="bk-daily-archive-list">'+days.map(day=>{let best='';try{const score=localStorage.getItem('bk_letter_practice_best_v2_'+bkDailyScope()+'_'+day);const official=bkDailyRead(day);best=score?'Practice best: '+score:official?.completed?'Original score: '+official.answers.length:'Not played'}catch{best='Practice'}return '<button type="button" data-bk-day="'+day+'"><b>'+safe(bkDailyTitle(day))+' · Letter '+bkDailyLetter(day)+'</b><small>'+safe(best)+' · Play →</small></button>'}).join('')+'</div></section>';
  app.querySelector('#bk-daily-archive-back').onclick=menu;
  app.querySelectorAll('[data-bk-day]').forEach(button=>button.onclick=()=>bkDailyOpen(button.dataset.bkDay,true));
 }
