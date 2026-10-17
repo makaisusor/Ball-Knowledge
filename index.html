@@ -518,7 +518,7 @@ async function bkDailyFetchAccountArchive(){
 }
 function bkDailySyncError(error){
  const raw=error?.message||'Unable to connect to your account.';
- if(/bk_daily_begin|bk_daily_answer|bk_daily_attempts|schema cache|does not exist/i.test(raw))return 'Account-based Daily Challenge saving is not set up in Supabase yet. Apply supabase/daily_challenge_account_sync.sql to enable it.';
+ if(/schema cache|PGRST202|PGRST205|does not exist|undefined function|undefined table/i.test(raw))return 'Daily Challenge service unavailable ('+(error?.code||'database error')+'). Please retry or contact support. Detail: '+raw;
  return raw;
 }
 
