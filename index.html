@@ -762,15 +762,42 @@ function bkDailyShowMissed(day,answers){
  draw();
  overlay.querySelector('#bk-missed-close').focus();
 }
+function bkDailyShareText(day,score,practice){
+ const st=bkDailyMilestones();
+ return '⚾ BALL KNOWLEDGE · '+(practice?'PRACTICE':'DAILY CHALLENGE')+'\n'+bkDailyTitle(day)+'\n'+score+' MLB players in 2 minutes'+(practice?'':'\n🔥 '+st.streak+' day streak')+'\nCan you beat my score?\nhttps://playballknowledge.github.io/';
+}
+async function bkDailyShareImage(day,score,practice){
+ const st=bkDailyMilestones(),canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');
+ canvas.width=1080;canvas.height=1350;
+ const g=ctx.createLinearGradient(0,0,1080,1350);g.addColorStop(0,'#214a34');g.addColorStop(1,'#06140d');
+ ctx.fillStyle=g;ctx.fillRect(0,0,1080,1350);
+ ctx.strokeStyle='#62e5a0';ctx.lineWidth=6;ctx.strokeRect(42,42,996,1266);
+ ctx.textAlign='center';ctx.fillStyle='#6aeca7';ctx.font='bold 54px sans-serif';ctx.fillText('⚾  BALL KNOWLEDGE',540,172);
+ ctx.fillStyle='#ffffff';ctx.font='bold 72px sans-serif';ctx.fillText(practice?'PRACTICE RUN':'DAILY CHALLENGE',540,330);
+ ctx.fillStyle='#d7ecde';ctx.font='42px sans-serif';ctx.fillText(bkDailyTitle(day),540,403);
+ ctx.fillStyle='#6aeca7';ctx.font='bold 310px sans-serif';ctx.fillText(String(score),540,800);
+ ctx.fillStyle='#ffffff';ctx.font='bold 55px sans-serif';ctx.fillText('MLB PLAYERS NAMED',540,888);
+ if(!practice){ctx.font='bold 44px sans-serif';ctx.fillText('🔥  '+st.streak+' DAY STREAK',540,975);}
+ ctx.fillStyle='#d7ecde';ctx.font='45px sans-serif';ctx.fillText('CAN YOU BEAT MY SCORE?',540,1114);
+ ctx.fillStyle='#6aeca7';ctx.font='bold 37px sans-serif';ctx.fillText('playballknowledge.github.io',540,1198);
+ const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/png'));
+ if(!blob)throw new Error('Could not create image');
+ const file=new File([blob],'ball-knowledge-'+day+'.png',{type:'image/png'});
+ if(navigator.canShare?.({files:[file]})&&navigator.share){
+  try{await navigator.share({files:[file],title:'Ball Knowledge',text:bkDailyShareText(day,score,practice)});return}catch(error){if(error.name==='AbortError')return}
+ }
+ const url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=file.name;link.click();setTimeout(()=>URL.revokeObjectURL(url),2000);
+}
 function bkDailyResults(day,result,practice){
- const answers=Array.isArray(result.answers)?result.answers:[],score=answers.length;
- const syncText=practice?'Archive replays are practice and do not change today’s result.':window.bkActiveUserId?(result.server?'✓ Your accepted answers have been saved to your account.':'This result is on this device. Official account sync will apply to new scored attempts once the Supabase migration is installed.'):'Guest results are saved only on this browser. Sign in to save future daily scores across devices.';
- app.innerHTML='<section class="panel" style="text-align:center"><div class="bk-daily-eyebrow">⚾ '+(practice?'Archive practice complete':'Daily Challenge complete')+'</div><h2 style="margin-top:10px">Letter '+bkDailyLetter(day)+' · '+safe(bkDailyTitle(day))+'</h2><div class="bk-daily-letter">'+score+'</div><p>MLB players named in 2 minutes</p><div class="actions" style="justify-content:center;flex-wrap:wrap"><button type="button" class="primary" id="bk-daily-results-missed">🔎 See Who You Missed</button><button type="button" class="secondary" id="bk-daily-results-menu">Game modes</button><button type="button" class="secondary" id="bk-daily-results-archive">Past challenges</button><button type="button" class="secondary" id="bk-daily-results-copy">Share result</button>'+(practice?'<button type="button" class="secondary" id="bk-daily-results-retry">Play again</button>':(!window.bkActiveUserId&&day===bkDailyToday()?'<button type="button" class="secondary" id="bk-daily-results-retry">Practice again</button>':''))+'</div><h3 style="font-size:21px;margin:22px 0 6px">Players you named</h3><p style="font-size:13px">Tap a player to view their MLB career stats.</p><div class="bk-daily-history" id="bk-daily-result-players" style="justify-content:center">'+answers.map(a=>'<button type="button" class="bk-daily-player-button" data-bk-player="'+safe(a.id)+'">'+safe(a.name)+' ⓘ</button>').join('')+'</div><p id="bk-daily-sync-note" style="font-size:12px;color:var(--muted)">'+safe(syncText)+'</p></section>';
+ const answers=Array.isArray(result.answers)?result.answers:[],score=answers.length,st=bkDailyMilestones();
+ const syncText=practice?'Practice does not change your daily score.':window.bkActiveUserId?(result.server?'✓ Answers saved to your account.':'This result was saved locally; account sync is not confirmed.'):'Guest results are stored only on this browser.';
+ app.innerHTML='<section class="panel" style="text-align:center"><div class="bk-daily-eyebrow">⚾ '+(practice?'Practice complete':'Daily Challenge complete')+'</div><div class="bk-result-card-v2"><h2>KNOW BALL? PROVE IT.</h2><p>'+safe(bkDailyTitle(day))+' · Letter '+bkDailyLetter(day)+'</p><div class="big-score">'+score+'</div><h3>MLB PLAYERS NAMED</h3><div class="bk-v2-statrow"><span>🔥 '+st.streak+' day streak</span><span>🏆 Personal best '+st.best+'</span><span>📅 '+st.played+' days</span></div><p class="bk-next-reset">Next challenge in '+bkDailyCountdown()+' (UTC)</p></div><div class="actions" style="justify-content:center;flex-wrap:wrap"><button type="button" class="primary" id="bk-daily-results-image">📲 Share result image</button><button type="button" class="secondary" id="bk-daily-results-copy">Copy challenge text</button></div><div class="actions" style="justify-content:center;flex-wrap:wrap"><button type="button" class="secondary" id="bk-daily-results-missed">🔎 See Who You Missed</button><button type="button" class="secondary" id="bk-daily-results-archive">Your stats & archive</button><button type="button" class="secondary" id="bk-daily-results-menu">Game modes</button>'+(practice?'<button type="button" class="secondary" id="bk-daily-results-retry">Play again</button>':(!window.bkActiveUserId&&day===bkDailyToday()?'<button type="button" class="secondary" id="bk-daily-results-retry">Practice again</button>':''))+'</div><h3 style="font-size:21px;margin:22px 0 6px">Players you named</h3><p style="font-size:13px">Tap a player to view their MLB career stats.</p><div class="bk-daily-history" id="bk-daily-result-players" style="justify-content:center">'+answers.map(a=>'<button type="button" class="bk-daily-player-button" data-bk-player="'+safe(a.id)+'">'+safe(a.name)+' ⓘ</button>').join('')+'</div><p id="bk-daily-sync-note" style="font-size:12px;color:var(--muted)">'+safe(syncText)+'</p></section>';
  app.querySelector('#bk-daily-results-menu').onclick=menu;
  app.querySelector('#bk-daily-results-archive').onclick=bkDailyArchive;
  app.querySelector('#bk-daily-results-missed').onclick=()=>bkDailyShowMissed(day,answers);
  app.querySelector('#bk-daily-result-players').addEventListener('click',e=>{const button=e.target.closest('[data-bk-player]');if(button)showPlayerInfo(button.dataset.bkPlayer)});
- app.querySelector('#bk-daily-results-copy').onclick=()=>{const share='⚾ Ball Knowledge · '+(practice?'Archive practice':'Daily Letter')+' '+bkDailyTitle(day)+'\nLetter: '+bkDailyLetter(day)+'\n'+score+' MLB players in 2 minutes!\nhttps://playballknowledge.github.io/';if(navigator.clipboard?.writeText)navigator.clipboard.writeText(share).then(()=>alert('Result copied!')).catch(()=>prompt('Copy your result:',share));else prompt('Copy your result:',share)};
+ app.querySelector('#bk-daily-results-image').onclick=()=>bkDailyShareImage(day,score,practice).catch(e=>{console.warn(e);alert('Unable to export image on this browser. Try Copy challenge text instead.')});
+ app.querySelector('#bk-daily-results-copy').onclick=()=>{const text=bkDailyShareText(day,score,practice);if(navigator.clipboard?.writeText)navigator.clipboard.writeText(text).then(()=>alert('Result copied!')).catch(()=>prompt('Copy your result:',text));else prompt('Copy your result:',text)};
  const retry=app.querySelector('#bk-daily-results-retry');if(retry)retry.onclick=()=>bkDailyOpen(day,true);
 }
 
