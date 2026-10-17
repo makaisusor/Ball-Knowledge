@@ -594,6 +594,7 @@ function bkDailyMaybePrompt(){
  overlay.querySelector('#bk-daily-prompt-play').onclick=()=>{bkDailyDismiss();bkDailyOpen(day,false)};
  overlay.addEventListener('click',e=>{if(e.target===overlay){bkDailyDismiss();menu()}});
 }
+function bkDailyWaitFor(promise,label){return Promise.race([promise,new Promise((_,reject)=>setTimeout(()=>reject(new Error(label+' timed out after 12 seconds. Check Safari Network for the failed or pending Supabase request.')),12000))])}
 async function bkDailyOpen(day,practice){
  bkDailyStop();
  const serial=bkDailyRequestSerial,isToday=day===bkDailyToday();
@@ -602,13 +603,13 @@ async function bkDailyOpen(day,practice){
   app.innerHTML='<section class="panel"><h2>Loading your Daily Challenge…</h2><p>Checking your account and two-minute timer.</p><button type="button" class="secondary" id="bk-daily-loading-back">← Game modes</button></section>';
   app.querySelector('#bk-daily-loading-back').onclick=menu;
   let auth;
-  try{auth=await window.bkAuthenticatedUser()}catch(e){if(serial===bkDailyRequestSerial)bkDailyServerFailure(day,'Account verification failed: '+(e?.message||String(e)));return}
+  try{auth=await bkDailyWaitFor(window.bkAuthenticatedUser(),'Account verification')}catch(e){if(serial===bkDailyRequestSerial)bkDailyServerFailure(day,'Account verification failed: '+(e?.message||String(e)));return}
   if(serial!==bkDailyRequestSerial)return;
   const client=window.bkSharedClient();
   if(!auth||!client){bkDailyServerFailure(day,'No verified Supabase session. Sign in to your existing account again.');return}
   if(auth.id!==window.bkActiveUserId){bkDailyServerFailure(day,'Account changed while this page was open. Refresh the game page and try again.');return}
   try{
-   const {data,error}=await client.rpc('bk_daily_begin',{p_day:day});
+   const {data,error}=await bkDailyWaitFor(client.rpc('bk_daily_begin',{p_day:day}),'Daily Challenge sync');
    if(serial!==bkDailyRequestSerial)return;
    if(error||!data)throw error||new Error('Could not create daily attempt');
    const local=bkDailyStoreRemote(data);
