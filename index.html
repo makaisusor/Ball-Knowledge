@@ -603,7 +603,7 @@ async function bkDailyOpen(day,practice){
   app.innerHTML='<section class="panel"><h2>Loading your Daily Challenge…</h2><p>Checking your account and two-minute timer.</p><button type="button" class="secondary" id="bk-daily-loading-back">← Game modes</button></section>';
   app.querySelector('#bk-daily-loading-back').onclick=menu;
   let auth;
-  try{auth=await bkDailyWaitFor(window.bkAuthenticatedUser(),'Account verification')}catch(e){if(serial===bkDailyRequestSerial)bkDailyServerFailure(day,'Account verification failed: '+(e?.message||String(e)));return}
+  try{const sessionResult=await bkDailyWaitFor(window.bkSharedClient().auth.getSession(),'Session lookup');if(sessionResult.error)throw sessionResult.error;auth=sessionResult.data?.session?.user||null}catch(e){if(serial===bkDailyRequestSerial)bkDailyServerFailure(day,'Account verification failed: '+(e?.message||String(e)));return}
   if(serial!==bkDailyRequestSerial)return;
   const client=window.bkSharedClient();
   if(!auth||!client){bkDailyServerFailure(day,'No verified Supabase session. Sign in to your existing account again.');return}
